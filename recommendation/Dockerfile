@@ -26,6 +26,7 @@ COPY --from=builder /app/recommendation_app .
 # Copy the templates and config.json to the runtime stage
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/config.json ./config.json
+COPY --from=builder /app/static ./static
 
 # Expose the port your app runs on
 EXPOSE 8080

@@ -15,8 +15,8 @@ services:
     environment:
       - NODE_ENV=production
       - PRODUCTS_API_BASE_URI=http://catalogue:5000
-      - RECOMMENDATION_BASE_URI=http://recommendation:8080
-      - VOTING_BASE_URI=http://voting:8081
+      - RECOMMENDATION_BASE_URI=http://recco:8080
+      - VOTING_BASE_URI=http://voting:8080
     depends_on:
       - catalogue
       - recommendation
@@ -28,7 +28,7 @@ services:
   catalogue:
     build: ./catalogue
     ports:
-      - "5001:5000"
+      - "5000:5000"
     environment:
       - FLASK_ENV=production
       - MONGO_URI=mongodb://catalogue-db:27017/craftista
