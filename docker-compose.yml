@@ -19,7 +19,7 @@ services:
       - VOTING_BASE_URI=http://voting:8080
     depends_on:
       - catalogue
-      - recommendation
+      - recco
       - voting
     networks:
       - craftista-network
@@ -57,7 +57,7 @@ services:
    
 
   # Recommendation Service (Golang)
-  recommendation:
+  recco:
     build: ./recommendation
     ports:
       - "8081:8080"
