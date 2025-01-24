@@ -4,12 +4,10 @@ networks:
   craftista-network:
     driver: bridge
 
-
 services:
-  
-  # Frontend Service
   frontend:
     build: ./frontend
+    image: craftista-frontend:v1
     ports:
       - "3000:3000"
     environment:
@@ -24,9 +22,9 @@ services:
     networks:
       - craftista-network
 
-  # Catalogue Service (Python Flask)
   catalogue:
     build: ./catalogue
+    image: craftista-catalogue:v1
     ports:
       - "5000:5000"
     environment:
@@ -37,28 +35,26 @@ services:
     networks:
       - craftista-network
 
-  # MongoDB for Catalogue Service
   catalogue-db:
     image: mongo:latest
     ports:
-      - "27017:27017"
+      - "27017"
     volumes:
       - catalogue-db-data:/data/db
     networks:
       - craftista-network
 
-  #Voting Service (Java Spring Boot)
   voting:
     build: ./voting
+    image: craftista-voting:v1
     ports:
       - "8080:8080"
     networks:
       - craftista-network
-   
 
-  # Recommendation Service (Golang)
   recco:
     build: ./recommendation
+    image: craftista-recco:v1
     ports:
       - "8081:8080"
     networks:

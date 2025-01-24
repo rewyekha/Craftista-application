@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM golang:1.20 AS builder
+FROM golang:1.22.0-alpine AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -15,7 +15,8 @@ COPY . .
 RUN go build -o recommendation_app
 
 # Stage 2: Runtime stage
-FROM golang:1.20
+FROM golang:1.22.0-alpine
+
 
 # Set the working directory for the runtime stage
 WORKDIR /app
