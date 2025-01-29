@@ -58,3 +58,12 @@ jobs:
       
       - name: Lint
         run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test --coverage
+        
+      - name: Check test coverage
+        uses: VeryGoodOpenSource/very_good_coverage@v2
+        with:
+          path: "./frontend/coverage/lcov.info"
+          min_coverage: 80
