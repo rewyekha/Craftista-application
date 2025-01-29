@@ -1,37 +1,31 @@
 // eslint.config.js
-import eslint from "@eslint/js";
-import globals from "globals";
+const globals = require('globals');
 
-export default [
-  // Base ESLint configuration
-  eslint.configs.recommended,
-
+module.exports = [
   {
-    // Define global settings
+    files: ['**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx'],
+    ignores: [
+      'node_modules/**',
+      'build/**',
+      'dist/**',
+      'coverage/**',
+    ],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: "module",
+      sourceType: 'module',
       globals: {
         ...globals.browser,
         ...globals.node,
-        ...globals.es2021,
+        ...globals.es2021
       },
     },
-
-    // Define rules
     rules: {
-      semi: ["error", "always"],
-      quotes: ["error", "single"],
-      indent: ["error", 2],
-      "comma-dangle": ["error", "always-multiline"],
-      "no-unused-vars": "warn",
-      "no-console": "warn",
+      'semi': ['error', 'always'],
+      'quotes': ['error', 'single'],
+      'indent': ['error', 2],
+      'comma-dangle': ['error', 'always-multiline'],
+      'no-unused-vars': 'warn',
+      'no-console': 'warn',
     },
-
-    // Define which files to lint
-    files: ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"],
-
-    // Define which files/folders to ignore
-    ignores: ["node_modules/**", "build/**", "dist/**", "coverage/**"],
   },
 ];
