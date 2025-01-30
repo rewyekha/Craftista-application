@@ -36,3 +36,4 @@ EXPOSE 3000
 CMD ["npm", "start"]
 
 
+# Test the frontend application
