@@ -116,3 +116,46 @@ jobs:
       
       - name: Static analysis
         run: bandit -r . -c pyproject.toml  --skip B201      
+
+  validate-recommendation:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.voting == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: voting
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache-dependency-path: voting/go.sum
+      
+      - name: Install dependencies
+        run: go mod download
+      
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          working-directory: voting
+          args: --timeout=5m
+      
+      - name: Run unit tests with coverage
+        run: |
+          go test -race -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out
+      
+      - name: Check vulnerabilities
+        uses: golang/govulncheck-action@v1
+        with:
+          working-directory: voting
+      
+    #   - name: Static analysis (SonarCloud)
+    #     uses: SonarSource/sonarcloud-github-action@master
+    #     env:
+    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    #     with:
+    #       projectBaseDir: recommendation
