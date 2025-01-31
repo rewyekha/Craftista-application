@@ -47,3 +47,6 @@ EXPOSE 5000
 
 # Define the entry point for the container to run the application with Gunicorn.
 ENTRYPOINT ["gunicorn", "app:app", "--bind", "0.0.0.0:5000"]
+
+
+# Twstin the application
