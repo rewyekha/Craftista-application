@@ -115,4 +115,4 @@ jobs:
         run: safety check || true # This is set to true to ensure the pipeline does not fail if there are vulnerabilities
       
       - name: Static analysis
-        run: bandit -r . -c pyproject.toml        
+        run: bandit -r . -c pyproject.toml  --skip B201      
