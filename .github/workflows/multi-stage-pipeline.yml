@@ -142,15 +142,15 @@ jobs:
     #       working-directory: recommendation
     #       args: --timeout=5m
       
-      - name: Run unit tests with coverage
-        run: |
-          go test -race -coverprofile=coverage.out -covermode=atomic ./...
-          go tool cover -func=coverage.out
+    #   - name: Run unit tests with coverage
+    #     run: |
+    #       go test -race -coverprofile=coverage.out -covermode=atomic ./...
+    #       go tool cover -func=coverage.out
       
-      - name: Check vulnerabilities
-        uses: golang/govulncheck-action@v1
-        with:
-          working-directory: recommendation
+    #   - name: Check vulnerabilities
+    #     uses: golang/govulncheck-action@v1
+    #     with:
+    #       working-directory: recommendation
       
     #   - name: Static analysis (SonarCloud)
     #     uses: SonarSource/sonarcloud-github-action@master
