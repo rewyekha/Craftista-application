@@ -31,7 +31,7 @@ jobs:
               - 'catalogue/**'
             voting:
               - 'voting/**'
-            recco:
+            recommendation:
               - 'recommendation/**'
             docker:
               - 'docker-compose.yml'
