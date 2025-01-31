@@ -8,7 +8,7 @@ on:
       - 'frontend/**'
       - 'catalogue/**'
       - 'voting/**'
-      - 'recco/**'
+      - 'recommendation/**'
       - '*'
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
       frontend: ${{ steps.changes.outputs.frontend }}
       catalogue: ${{ steps.changes.outputs.catalogue }}
       voting: ${{ steps.changes.outputs.voting }}
-      recco: ${{ steps.changes.outputs.recco }}
+      recommendation: ${{ steps.changes.outputs.recommendation}}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -32,7 +32,7 @@ jobs:
             voting:
               - 'voting/**'
             recco:
-              - 'recco/**'
+              - 'recommendation/**'
             docker:
               - 'docker-compose.yml'
 
