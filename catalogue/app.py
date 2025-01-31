@@ -68,5 +68,6 @@ def get_system_info():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
-
+    # Use environment variable with a default of False
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode)
