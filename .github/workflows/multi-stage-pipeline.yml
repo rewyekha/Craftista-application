@@ -119,11 +119,11 @@ jobs:
 
   validate-recommendation:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.voting == 'true' }}
+    if: ${{ needs.detect-changes.outputs.recommendation == 'true' }}
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: voting
+        working-directory: recommendation
     steps:
       - uses: actions/checkout@v4
       
@@ -131,7 +131,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-          cache-dependency-path: voting/go.sum
+          cache-dependency-path: recommendation/go.sum
       
       - name: Install dependencies
         run: go mod download
@@ -139,7 +139,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          working-directory: voting
+          working-directory: recommendation
           args: --timeout=5m
       
       - name: Run unit tests with coverage
@@ -150,7 +150,7 @@ jobs:
       - name: Check vulnerabilities
         uses: golang/govulncheck-action@v1
         with:
-          working-directory: voting
+          working-directory: recommendation
       
     #   - name: Static analysis (SonarCloud)
     #     uses: SonarSource/sonarcloud-github-action@master
