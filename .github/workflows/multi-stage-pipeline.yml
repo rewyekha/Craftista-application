@@ -187,7 +187,7 @@ jobs:
     #     run: mvn spotbugs:check
       
       - name: Check dependencies
-        run: mvn dependency-check:check
+        run: mvn org.owasp:dependency-check-maven:check
       
     #   - name: Static analysis (SonarCloud)
     #     env:
