@@ -188,9 +188,20 @@ jobs:
       
     #   - name: Check dependencies
     #     run: mvn org.owasp:dependency-check-maven:check
-      - name: Check dependencies
-        run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=10
-  # This sets the failure threshold to 10, allowing builds with lower severity vulnerabilities
+      - name: Clean Maven Cache
+        run: |
+            mvn clean
+            rm -rf ~/.m2/repository/org/owasp
+            rm -rf ~/.m2/repository/*  # Clears all cached dependencies
+
+      - name: Clean OWASP Dependency Check Cache
+        run: |
+            rm -rf ~/.m2/repository/org/owasp/dependency-check-data/
+            rm -rf target/dependency-check-report.json
+
+      - name: Run OWASP Dependency Check (Debug)
+        run: |
+            mvn org.owasp:dependency-check-maven:check -X
       
     #   - name: Static analysis (SonarCloud)
     #     env:
