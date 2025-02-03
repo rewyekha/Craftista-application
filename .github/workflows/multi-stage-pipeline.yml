@@ -188,6 +188,9 @@ jobs:
       
     #   - name: Check dependencies
     #     run: mvn org.owasp:dependency-check-maven:check
+      - name: Check dependencies
+        run: mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=10
+  # This sets the failure threshold to 10, allowing builds with lower severity vulnerabilities
       
     #   - name: Static analysis (SonarCloud)
     #     env:
