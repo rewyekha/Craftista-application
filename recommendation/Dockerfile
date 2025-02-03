@@ -34,5 +34,3 @@ EXPOSE 8080
 
 # Set the command to run your application
 CMD ["./recommendation_app"]
-
-# Testing go lang.......
