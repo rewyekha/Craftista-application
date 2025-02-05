@@ -193,6 +193,7 @@ jobs:
             mvn clean
             rm -rf ~/.m2/repository/org/owasp
             rm -rf ~/.m2/repository/*  # Clears all cached dependencies
+            rm -rf ~/.m2/dependency-check-data/
 
       - name: Clean OWASP Dependency Check Cache
         run: |
