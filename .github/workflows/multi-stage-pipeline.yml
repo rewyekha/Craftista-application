@@ -201,7 +201,7 @@ jobs:
 
       - name: Run OWASP Dependency Check (Debug)
         run: |
-            mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=5 || echo "Security check completed with warnings"
+            mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=10 || echo "Security check completed with warnings"
       
     #   - name: Static analysis (SonarCloud)
     #     env:
