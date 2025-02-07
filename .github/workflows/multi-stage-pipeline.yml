@@ -183,8 +183,8 @@ jobs:
       - name: Build and test
         run: mvn -B verify
       
-    #   - name: Run SpotBugs
-    #     run: mvn spotbugs:check
+      - name: Run SpotBugs
+        run: mvn spotbugs:check
       
     #   - name: Check dependencies
     #     run: mvn org.owasp:dependency-check-maven:check
