@@ -443,6 +443,15 @@ jobs:
             docker:
               - 'docker-compose.yml'
 
+      - name: Debug Changes
+        run: |
+          echo "Frontend changes: ${{ steps.changes.outputs.frontend }}"
+          echo "Catalogue changes: ${{ steps.changes.outputs.catalogue }}"
+          echo "Voting changes: ${{ steps.changes.outputs.voting }}"
+          echo "Recommendation changes: ${{ steps.changes.outputs.recommendation }}"
+
+        
+
   validate-frontend:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
@@ -568,6 +577,14 @@ jobs:
         service: [frontend, catalogue, recommendation, voting]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug Conditions
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Reference: ${{ github.ref }}"
+          echo "Frontend changes: ${{ needs.detect-changes.outputs.frontend }}"
+          echo "Service: ${{ matrix.service }}"
+
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
