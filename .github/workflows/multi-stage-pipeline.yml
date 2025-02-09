@@ -564,9 +564,8 @@ jobs:
         run: mvn -B verify
 
       - name: SonarCloud Analysis
-        uses: SonarSource/sonarqube-scan-action@v4
-        with:
-          projectBaseDir: voting
+        run: mvn sonar:sonar -Dsonar.projectKey=charliepoker_craftista -Dsonar.java.binaries=target/classes
+        working-directory: voting
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
