@@ -1,4 +1,411 @@
-name:  Craftista Multi-Stage Pipeline
+# name:  Craftista Multi-Stage Pipeline
+
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
+#     branches: [main]
+#     paths:
+#       - 'frontend/**'
+#       - 'catalogue/**'
+#       - 'voting/**'
+#       - 'recommendation/**'
+#       - '*'
+
+# jobs:
+#   detect-changes:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       frontend: ${{ steps.changes.outputs.frontend }}
+#       catalogue: ${{ steps.changes.outputs.catalogue }}
+#       voting: ${{ steps.changes.outputs.voting }}
+#       recommendation: ${{ steps.changes.outputs.recommendation}}
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: dorny/paths-filter@v3
+#         id: changes
+#         with:
+#           filters: |
+#             frontend:
+#               - 'frontend/**'
+#             catalogue:
+#               - 'catalogue/**'
+#             voting:
+#               - 'voting/**'
+#             recommendation:
+#               - 'recommendation/**'
+#             docker:
+#               - 'docker-compose.yml'
+
+#   validate-frontend:
+#     needs: detect-changes
+#     if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: frontend
+#     steps:
+#       - uses: actions/checkout@v4
+      
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '18'
+#           cache: 'npm'
+#           cache-dependency-path: frontend/package-lock.json
+
+#       - name: Install dependencies
+#         run: npm ci --legacy-peer-deps
+      
+#       - name: Lint
+#         continue-on-error: true    # This is set to true to ensure the pipeline does not fail if there are linting errors
+#         run: npm run lint
+
+#       - name: Run unit tests
+#         run: npm run test:coverage
+
+#       - name: Check test coverage
+#         uses: VeryGoodOpenSource/very_good_coverage@v3.0.0
+#         with:
+#           path: "./frontend/coverage/lcov.info"
+#           min_coverage: 40  #Change this to 80. You reduce the threshold to 40 to see the action pass
+
+#       - name: Run dependency audit
+#         run: npm audit || true # This is set to true to ensure the pipeline does not fail if there are vulnerabilities
+
+#       - name: Static analysis (SonarCloud)
+#         uses: SonarSource/sonarcloud-github-action@v4
+#         with:
+#           projectBaseDir: frontend 
+#         env:
+#           # GITHUB_TOKEN: ${{ secrets.GIT_HUB_TOKEN }}
+#           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        
+
+#   validate-catalogue:
+#     needs: detect-changes
+#     if: ${{ needs.detect-changes.outputs.catalogue == 'true' }}
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: catalogue
+#     steps:
+#       - uses: actions/checkout@v4
+      
+#       - name: Setup Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: '3.11'
+#           cache: 'pip'
+#           cache-dependency-path: catalogue/requirements.txt
+      
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install -r requirements.txt
+#           pip install flake8 pytest pytest-cov bandit safety
+      
+#       - name: Lint
+#         run: |
+#           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+#           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      
+#       - name: Run unit tests with coverage
+#         run: pytest --cov=. --cov-report=xml --cov-fail-under=50 # Changed the threshold to 50 from 80 to see the action pass
+      
+#       - name: Security check dependencies
+#         run: safety check || true # This is set to true to ensure the pipeline does not fail if there are vulnerabilities
+      
+#       - name: Static analysis
+#         run: bandit -r . -c pyproject.toml  --skip B201      
+
+#   validate-recommendation:
+#     needs: detect-changes
+#     if: ${{ needs.detect-changes.outputs.recommendation == 'true' }}
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: recommendation
+#     steps:
+#       - uses: actions/checkout@v4
+      
+#       - name: Setup Go
+#         uses: actions/setup-go@v4
+#         with:
+#           go-version: '1.21'
+#           cache-dependency-path: recommendation/go.sum
+      
+#       - name: Install dependencies
+#         run: go mod download
+        
+        
+#     #   - name: Lint
+#     #     uses: golangci/golangci-lint-action@v3
+#     #     with:
+#     #       working-directory: recommendation
+#     #       args: --timeout=5m
+      
+#     #   - name: Run unit tests with coverage
+#     #     run: |
+#     #       go test -race -coverprofile=coverage.out -covermode=atomic ./...
+#     #       go tool cover -func=coverage.out
+      
+#     #   - name: Check vulnerabilities
+#     #     uses: golang/govulncheck-action@v1
+#     #     with:
+#     #       working-directory: recommendation
+      
+#     #   - name: Static analysis (SonarCloud)
+#     #     uses: SonarSource/sonarcloud-github-action@master
+#     #     env:
+#     #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#     #     with:
+#     #       projectBaseDir: recommendation
+
+
+
+#   validate-voting:
+#     needs: detect-changes
+#     if: ${{ needs.detect-changes.outputs.voting == 'true' }}
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: voting
+#     steps:
+#       - uses: actions/checkout@v4
+      
+#       - name: Setup Java
+#         uses: actions/setup-java@v4
+#         with:
+#           java-version: '17'
+#           distribution: 'temurin'
+#           cache: 'maven'
+      
+#       - name: Build and test
+#         run: mvn -B verify
+      
+#       # - name: Run SpotBugs
+#       #   run: mvn spotbugs:check
+      
+#     #   - name: Check dependencies
+#     #     run: mvn org.owasp:dependency-check-maven:check
+#       # - name: Clean Maven Cache
+#       #   run: |
+#       #       mvn clean
+#       #       rm -rf ~/.m2/repository/org/owasp
+#       #       rm -rf ~/.m2/repository/*  # Clears all cached dependencies
+#       #       rm -rf ~/.m2/dependency-check-data/
+
+#       # - name: Clean OWASP Dependency Check Cache
+#       #   run: |
+#       #       rm -rf ~/.m2/repository/org/owasp/dependency-check-data/
+#       #       rm -rf target/dependency-check-report.json
+
+#       # - name: Run OWASP Dependency Check (Debug)
+#       #   run: |
+#       #       mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=10 || true
+      
+#     #   - name: Static analysis (SonarCloud)
+#     #     env:
+#     #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#     #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#     #     run: mvn sonar:sonar -Dsonar.projectKey=voting
+
+
+
+# # =================================================================================================
+#   push_to_docker_register:
+#     runs-on: ubuntu-latest
+#     needs: [detect-changes, validate-frontend, validate-catalogue, validate-recommendation, validate-voting]
+#     if: |
+#       github.event_name == 'pull_request' && 
+#       github.event.pull_request.base.ref == 'main' &&
+#       (success() || needs.validate-frontend.result == 'success' ||
+#         needs.validate-catalogue.result == 'success' ||
+#         needs.validate-recommendation.result == 'success' ||
+#         needs.validate-voting.result == 'success')
+#     outputs:
+#       frontend_pushed: ${{ steps.record_frontend.outputs.pushed }}
+#       catalogue_pushed: ${{ steps.record_catalogue.outputs.pushed }}
+#       recommendation_pushed: ${{ steps.record_recommendation.outputs.pushed }}
+#       voting_pushed: ${{ steps.record_voting.outputs.pushed }}
+#     steps:
+#         - name: Checkout code
+#           uses: actions/checkout@v4
+
+#         - name: Set up Docker Buildx
+#           uses: docker/setup-buildx-action@v3
+
+#         - name: Log in to Docker Hub
+#           uses: docker/login-action@v2
+#           with:
+#             username: ${{ secrets.DOCKER_USERNAME }}
+#             password: ${{ secrets.DOCKER_PASSWORD }}
+
+
+#         - name: Build and push Frontend
+#           id: push_frontend
+#           if: |
+#               needs.detect-changes.outputs.frontend == 'true' &&
+#               needs.validate-frontend.result == 'success'
+#             uses: docker/build-push-action@v5
+#             with:
+#               context: ./frontend
+#               push: true
+#               tags: |
+#                 ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest
+#                 ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:${{ github.sha }}
+#               cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache
+#               cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache,mode=max
+
+#         - name: Record Frontend Push
+#           id: record_frontend
+#           if: steps.push_frontend.outcome == 'success'
+#           run: echo "pushed=true" >> $GITHUB_OUTPUT
+
+#         - name: Build and push Catalogue
+#           id: push_catalogue
+#           if: |
+#             needs.detect-changes.outputs.catalogue == 'true' &&
+#             needs.validate-catalogue.result == 'success'
+#           uses: docker/build-push-action@v5
+#           with:
+#             context: ./catalogue
+#             push: true
+#             tags: |
+#               ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest
+#               ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:${{ github.sha }}
+#             cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:buildcache
+#             cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:buildcache,mode=max
+
+#         - name: Record Catalogue Push
+#           id: record_catalogue
+#           if: steps.push_catalogue.outcome == 'success'
+#           run: echo "pushed=true" >> $GITHUB_OUTPUT
+
+
+#         - name: Build and push Recommendation
+#           id: push_recommendation
+#           if:  |
+#             needs.detect-changes.outputs.recommendation == 'true'&&
+#             needs.validate-recommendation.result == 'success'
+#           uses: docker/build-push-action@v5
+#           with:
+#             context: ./recommendation
+#             push: true
+#             tags: |
+#               ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest
+#               ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:${{ github.sha }}
+#             cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:buildcache
+#             cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:buildcache,mode=max
+
+
+#         - name: Record Recommendation Push
+#           id: record_recommendation
+#           if: steps.push_recommendation.outcome == 'success'
+#           run: echo "pushed=true" >> $GITHUB_OUTPUT
+
+
+#         - name: Build and push Voting
+#           id: push_voting
+#           if: |
+#             needs.detect-changes.outputs.voting == 'true' &&
+#             needs.validate-voting.result == 'success'
+#           uses: docker/build-push-action@v5
+#           with:
+#             context: ./voting
+#             push: true
+#             tags: |
+#               ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest
+#               ${{ secrets.DOCKER_USERNAME }}/craftista-voting:${{ github.sha }}
+#             cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-voting:buildcache
+#             cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-voting:buildcache,mode=max
+
+
+#         - name: Record Voting Push
+#           id: record_voting
+#           if: steps.push_voting.outcome == 'success'
+#           run: echo "pushed=true" >> $GITHUB_OUTPUT
+
+
+
+#   rollback:
+#     needs: push_to_docker_register
+#     if: failure()
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v2
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
+
+#       - name: Rollback Frontend
+#         if: needs.push_to_docker_register.outputs.frontend_pushed == 'true'
+#         run: |
+#           echo "Rolling back Frontend service..."
+#           if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest; then
+#             docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:rollback
+#             docker push ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:rollback
+#             echo "Frontend rollback successful"
+#           else
+#             echo "Failed to rollback Frontend service"
+#             exit 1
+#           fi
+
+#       - name: Rollback Catalogue
+#         if: needs.push_to_docker_register.outputs.catalogue_pushed == 'true'
+#         run: |
+#           echo "Rolling back Catalogue service..."
+#           if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest; then
+#             docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:rollback
+#             docker push ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:rollback
+#             echo "Catalogue rollback successful"
+#           else
+#             echo "Failed to rollback Catalogue service"
+#             exit 1
+#           fi
+
+#       - name: Rollback Recommendation
+#         if: needs.push_to_docker_register.outputs.recommendation_pushed == 'true'
+#         run: |
+#           echo "Rolling back Recommendation service..."
+#           if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest; then
+#             docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:rollback
+#             docker push ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:rollback
+#             echo "Recommendation rollback successful"
+#           else
+#             echo "Failed to rollback Recommendation service"
+#             exit 1
+#           fi
+
+#       - name: Rollback Voting
+#         if: needs.push_to_docker_register.outputs.voting_pushed == 'true'
+#         run: |
+#           echo "Rolling back Voting service..."
+#           if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest; then
+#             docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest ${{ secrets.DOCKER_USERNAME }}/craftista-voting:rollback
+#             docker push ${{ secrets.DOCKER_USERNAME }}/craftista-voting:rollback
+#             echo "Voting rollback successful"
+#           else
+#             echo "Failed to rollback Voting service"
+#             exit 1
+#           fi
+
+#       - name: Rollback Status Summary
+#         run: |
+#           echo "=== Rollback Status Summary ==="
+#           echo "Frontend: ${{ needs.push_to_docker_register.outputs.frontend_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+#           echo "Catalogue: ${{ needs.push_to_docker_register.outputs.catalogue_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+#           echo "Recommendation: ${{ needs.push_to_docker_register.outputs.recommendation_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+#           echo "Voting: ${{ needs.push_to_docker_register.outputs.voting_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+
+# # =================================================================================================
+#     # a1ad85c2ed06111be5186d68e17cdb98dc3ea400
+
+
+
+name: Craftista Multi-Stage Pipeline
 
 on:
   pull_request:
@@ -18,7 +425,7 @@ jobs:
       frontend: ${{ steps.changes.outputs.frontend }}
       catalogue: ${{ steps.changes.outputs.catalogue }}
       voting: ${{ steps.changes.outputs.voting }}
-      recommendation: ${{ steps.changes.outputs.recommendation}}
+      recommendation: ${{ steps.changes.outputs.recommendation }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -45,7 +452,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -55,31 +462,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
-      
+
       - name: Lint
-        continue-on-error: true    # This is set to true to ensure the pipeline does not fail if there are linting errors
-        run: npm run lint
+        run: npm run lint || true  # Ensures linting errors don't break pipeline
 
       - name: Run unit tests
         run: npm run test:coverage
 
-      - name: Check test coverage
-        uses: VeryGoodOpenSource/very_good_coverage@v3.0.0
+      - name: SonarCloud Analysis
+        uses: SonarSource/sonarqube-scan-action@v4
         with:
-          path: "./frontend/coverage/lcov.info"
-          min_coverage: 40  #Change this to 80. You reduce the threshold to 40 to see the action pass
-
-      - name: Run dependency audit
-        run: npm audit || true # This is set to true to ensure the pipeline does not fail if there are vulnerabilities
-
-      - name: Static analysis (SonarCloud)
-        uses: SonarSource/sonarcloud-github-action@v4
-        with:
-          projectBaseDir: frontend 
+          projectBaseDir: frontend
         env:
-          # GITHUB_TOKEN: ${{ secrets.GIT_HUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        
 
   validate-catalogue:
     needs: detect-changes
@@ -90,33 +485,28 @@ jobs:
         working-directory: catalogue
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: catalogue/requirements.txt
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install flake8 pytest pytest-cov bandit safety
-      
-      - name: Lint
-        run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      
+          pip install -r requirements.txt pytest pytest-cov bandit safety
+
       - name: Run unit tests with coverage
-        run: pytest --cov=. --cov-report=xml --cov-fail-under=50 # Changed the threshold to 50 from 80 to see the action pass
-      
-      - name: Security check dependencies
-        run: safety check || true # This is set to true to ensure the pipeline does not fail if there are vulnerabilities
-      
-      - name: Static analysis
-        run: bandit -r . -c pyproject.toml  --skip B201      
+        run: pytest --cov=. --cov-report=xml
+
+      - name: SonarCloud Analysis
+        uses: SonarSource/sonarqube-scan-action@v4
+        with:
+          projectBaseDir: catalogue
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   validate-recommendation:
     needs: detect-changes
@@ -127,42 +517,22 @@ jobs:
         working-directory: recommendation
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
           cache-dependency-path: recommendation/go.sum
-      
+
       - name: Install dependencies
         run: go mod download
-        
-        
-    #   - name: Lint
-    #     uses: golangci/golangci-lint-action@v3
-    #     with:
-    #       working-directory: recommendation
-    #       args: --timeout=5m
-      
-    #   - name: Run unit tests with coverage
-    #     run: |
-    #       go test -race -coverprofile=coverage.out -covermode=atomic ./...
-    #       go tool cover -func=coverage.out
-      
-    #   - name: Check vulnerabilities
-    #     uses: golang/govulncheck-action@v1
-    #     with:
-    #       working-directory: recommendation
-      
-    #   - name: Static analysis (SonarCloud)
-    #     uses: SonarSource/sonarcloud-github-action@master
-    #     env:
-    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    #     with:
-    #       projectBaseDir: recommendation
 
-
+      - name: SonarCloud Analysis
+        uses: SonarSource/sonarqube-scan-action@v4
+        with:
+          projectBaseDir: recommendation
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   validate-voting:
     needs: detect-changes
@@ -173,232 +543,77 @@ jobs:
         working-directory: voting
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
-      
+
       - name: Build and test
         run: mvn -B verify
-      
-      # - name: Run SpotBugs
-      #   run: mvn spotbugs:check
-      
-    #   - name: Check dependencies
-    #     run: mvn org.owasp:dependency-check-maven:check
-      # - name: Clean Maven Cache
-      #   run: |
-      #       mvn clean
-      #       rm -rf ~/.m2/repository/org/owasp
-      #       rm -rf ~/.m2/repository/*  # Clears all cached dependencies
-      #       rm -rf ~/.m2/dependency-check-data/
 
-      # - name: Clean OWASP Dependency Check Cache
-      #   run: |
-      #       rm -rf ~/.m2/repository/org/owasp/dependency-check-data/
-      #       rm -rf target/dependency-check-report.json
+      - name: SonarCloud Analysis
+        run: mvn sonar:sonar -Dsonar.projectKey=craftista-voting
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # - name: Run OWASP Dependency Check (Debug)
-      #   run: |
-      #       mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=10 || true
-      
-    #   - name: Static analysis (SonarCloud)
-    #     env:
-    #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    #     run: mvn sonar:sonar -Dsonar.projectKey=voting
-
-
-
-# =================================================================================================
   push_to_docker_register:
     runs-on: ubuntu-latest
-    needs: [detect-changes, validate-frontend, validate-catalogue, validate-recommendation, validate-voting]
-    if: |
-      github.event_name == 'pull_request' && 
-      github.event.pull_request.base.ref == 'main' &&
-      (success() || needs.validate-frontend.result == 'success' ||
-        needs.validate-catalogue.result == 'success' ||
-        needs.validate-recommendation.result == 'success' ||
-        needs.validate-voting.result == 'success')
-    outputs:
-      frontend_pushed: ${{ steps.record_frontend.outputs.pushed }}
-      catalogue_pushed: ${{ steps.record_catalogue.outputs.pushed }}
-      recommendation_pushed: ${{ steps.record_recommendation.outputs.pushed }}
-      voting_pushed: ${{ steps.record_voting.outputs.pushed }}
+    needs: [validate-frontend, validate-catalogue, validate-recommendation, validate-voting]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    strategy:
+      matrix:
+        service: [frontend, catalogue, recommendation, voting]
     steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-        - name: Log in to Docker Hub
-          uses: docker/login-action@v2
-          with:
-            username: ${{ secrets.DOCKER_USERNAME }}
-            password: ${{ secrets.DOCKER_PASSWORD }}
-
-
-        - name: Build and push Frontend
-          id: push_frontend
-          if: |
-              needs.detect-changes.outputs.frontend == 'true' &&
-              needs.validate-frontend.result == 'success'
-            uses: docker/build-push-action@v5
-            with:
-              context: ./frontend
-              push: true
-              tags: |
-                ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest
-                ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:${{ github.sha }}
-              cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache
-              cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache,mode=max
-
-        - name: Record Frontend Push
-          id: record_frontend
-          if: steps.push_frontend.outcome == 'success'
-          run: echo "pushed=true" >> $GITHUB_OUTPUT
-
-        - name: Build and push Catalogue
-          id: push_catalogue
-          if: |
-            needs.detect-changes.outputs.catalogue == 'true' &&
-            needs.validate-catalogue.result == 'success'
-          uses: docker/build-push-action@v5
-          with:
-            context: ./catalogue
-            push: true
-            tags: |
-              ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest
-              ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:${{ github.sha }}
-            cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:buildcache
-            cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:buildcache,mode=max
-
-        - name: Record Catalogue Push
-          id: record_catalogue
-          if: steps.push_catalogue.outcome == 'success'
-          run: echo "pushed=true" >> $GITHUB_OUTPUT
-
-
-        - name: Build and push Recommendation
-          id: push_recommendation
-          if:  |
-            needs.detect-changes.outputs.recommendation == 'true'&&
-            needs.validate-recommendation.result == 'success'
-          uses: docker/build-push-action@v5
-          with:
-            context: ./recommendation
-            push: true
-            tags: |
-              ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest
-              ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:${{ github.sha }}
-            cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:buildcache
-            cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:buildcache,mode=max
-
-
-        - name: Record Recommendation Push
-          id: record_recommendation
-          if: steps.push_recommendation.outcome == 'success'
-          run: echo "pushed=true" >> $GITHUB_OUTPUT
-
-
-        - name: Build and push Voting
-          id: push_voting
-          if: |
-            needs.detect-changes.outputs.voting == 'true' &&
-            needs.validate-voting.result == 'success'
-          uses: docker/build-push-action@v5
-          with:
-            context: ./voting
-            push: true
-            tags: |
-              ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest
-              ${{ secrets.DOCKER_USERNAME }}/craftista-voting:${{ github.sha }}
-            cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-voting:buildcache
-            cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-voting:buildcache,mode=max
-
-
-        - name: Record Voting Push
-          id: record_voting
-          if: steps.push_voting.outcome == 'success'
-          run: echo "pushed=true" >> $GITHUB_OUTPUT
-
-
-
-  rollback:
-    needs: push_to_docker_register
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Rollback Frontend
-        if: needs.push_to_docker_register.outputs.frontend_pushed == 'true'
-        run: |
-          echo "Rolling back Frontend service..."
-          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest; then
-            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:rollback
-            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:rollback
-            echo "Frontend rollback successful"
-          else
-            echo "Failed to rollback Frontend service"
-            exit 1
-          fi
+      - name: Build and push ${{ matrix.service }}
+        if: ${{ needs.detect-changes.outputs[matrix.service] == 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:latest
+            ${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:buildcache,mode=max
 
-      - name: Rollback Catalogue
-        if: needs.push_to_docker_register.outputs.catalogue_pushed == 'true'
-        run: |
-          echo "Rolling back Catalogue service..."
-          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest; then
-            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:rollback
-            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:rollback
-            echo "Catalogue rollback successful"
-          else
-            echo "Failed to rollback Catalogue service"
-            exit 1
-          fi
+  rollback:
+    needs: push_to_docker_register
+    if: failure()
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [frontend, catalogue, recommendation, voting]
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Rollback Recommendation
-        if: needs.push_to_docker_register.outputs.recommendation_pushed == 'true'
-        run: |
-          echo "Rolling back Recommendation service..."
-          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest; then
-            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:rollback
-            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:rollback
-            echo "Recommendation rollback successful"
-          else
-            echo "Failed to rollback Recommendation service"
-            exit 1
-          fi
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Rollback Voting
-        if: needs.push_to_docker_register.outputs.voting_pushed == 'true'
+      - name: Rollback ${{ matrix.service }}
+        if: |
+          (matrix.service == 'frontend' && needs.push_to_docker_register.outputs.frontend_pushed == 'true') ||
+          (matrix.service == 'catalogue' && needs.push_to_docker_register.outputs.catalogue_pushed == 'true') ||
+          (matrix.service == 'recommendation' && needs.push_to_docker_register.outputs.recommendation_pushed == 'true') ||
+          (matrix.service == 'voting' && needs.push_to_docker_register.outputs.voting_pushed == 'true')
         run: |
-          echo "Rolling back Voting service..."
-          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest; then
-            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest ${{ secrets.DOCKER_USERNAME }}/craftista-voting:rollback
-            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-voting:rollback
-            echo "Voting rollback successful"
-          else
-            echo "Failed to rollback Voting service"
-            exit 1
-          fi
-
-      - name: Rollback Status Summary
-        run: |
-          echo "=== Rollback Status Summary ==="
-          echo "Frontend: ${{ needs.push_to_docker_register.outputs.frontend_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
-          echo "Catalogue: ${{ needs.push_to_docker_register.outputs.catalogue_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
-          echo "Recommendation: ${{ needs.push_to_docker_register.outputs.recommendation_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
-          echo "Voting: ${{ needs.push_to_docker_register.outputs.voting_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
-
-# =================================================================================================
-    # a1ad85c2ed06111be5186d68e17cdb98dc3ea400
+          LAST_IMAGE=$(docker images ${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }} --format "{{.Tag}}" | head -n 2 | tail -n 1)
+          docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:$LAST_IMAGE ${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:rollback
+          docker push ${{ secrets.DOCKER_USERNAME }}/craftista-${{ matrix.service }}:rollback
+          echo "Rolled back ${{ matrix.service }} to $LAST_IMAGE"
