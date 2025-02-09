@@ -221,9 +221,14 @@ jobs:
       github.event_name == 'pull_request' && 
       github.event.pull_request.base.ref == 'main' &&
       (success() || needs.validate-frontend.result == 'success' ||
-       needs.validate-catalogue.result == 'success' ||
-       needs.validate-recommendation.result == 'success' ||
-       needs.validate-voting.result == 'success')
+        needs.validate-catalogue.result == 'success' ||
+        needs.validate-recommendation.result == 'success' ||
+        needs.validate-voting.result == 'success')
+    outputs:
+      frontend_pushed: ${{ steps.record_frontend.outputs.pushed }}
+      catalogue_pushed: ${{ steps.record_catalogue.outputs.pushed }}
+      recommendation_pushed: ${{ steps.record_recommendation.outputs.pushed }}
+      voting_pushed: ${{ steps.record_voting.outputs.pushed }}
     steps:
         - name: Checkout code
           uses: actions/checkout@v4
@@ -237,21 +242,29 @@ jobs:
             username: ${{ secrets.DOCKER_USERNAME }}
             password: ${{ secrets.DOCKER_PASSWORD }}
 
+
         - name: Build and push Frontend
+          id: push_frontend
           if: |
-            needs.detect-changes.outputs.frontend == 'true' &&
-            needs.validate-frontend.result == 'success'
-          uses: docker/build-push-action@v5
-          with:
-            context: ./frontend
-            push: true
-            tags: |
-              ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest
-              ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:${{ github.sha }}
-            cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache
-            cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache,mode=max
+              needs.detect-changes.outputs.frontend == 'true' &&
+              needs.validate-frontend.result == 'success'
+            uses: docker/build-push-action@v5
+            with:
+              context: ./frontend
+              push: true
+              tags: |
+                ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest
+                ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:${{ github.sha }}
+              cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache
+              cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-frontend:buildcache,mode=max
+
+        - name: Record Frontend Push
+          id: record_frontend
+          if: steps.push_frontend.outcome == 'success'
+          run: echo "pushed=true" >> $GITHUB_OUTPUT
 
         - name: Build and push Catalogue
+          id: push_catalogue
           if: |
             needs.detect-changes.outputs.catalogue == 'true' &&
             needs.validate-catalogue.result == 'success'
@@ -265,11 +278,17 @@ jobs:
             cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:buildcache
             cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:buildcache,mode=max
 
+        - name: Record Catalogue Push
+          id: record_catalogue
+          if: steps.push_catalogue.outcome == 'success'
+          run: echo "pushed=true" >> $GITHUB_OUTPUT
+
 
         - name: Build and push Recommendation
+          id: push_recommendation
           if:  |
-             needs.detect-changes.outputs.recommendation == 'true'&&
-             needs.validate-recommendation.result == 'success'
+            needs.detect-changes.outputs.recommendation == 'true'&&
+            needs.validate-recommendation.result == 'success'
           uses: docker/build-push-action@v5
           with:
             context: ./recommendation
@@ -280,7 +299,15 @@ jobs:
             cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:buildcache
             cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:buildcache,mode=max
 
+
+        - name: Record Recommendation Push
+          id: record_recommendation
+          if: steps.push_recommendation.outcome == 'success'
+          run: echo "pushed=true" >> $GITHUB_OUTPUT
+
+
         - name: Build and push Voting
+          id: push_voting
           if: |
             needs.detect-changes.outputs.voting == 'true' &&
             needs.validate-voting.result == 'success'
@@ -293,6 +320,85 @@ jobs:
               ${{ secrets.DOCKER_USERNAME }}/craftista-voting:${{ github.sha }}
             cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-voting:buildcache
             cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/craftista-voting:buildcache,mode=max
+
+
+        - name: Record Voting Push
+          id: record_voting
+          if: steps.push_voting.outcome == 'success'
+          run: echo "pushed=true" >> $GITHUB_OUTPUT
+
+
+
+  rollback:
+    needs: push_to_docker_register
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Rollback Frontend
+        if: needs.push_to_docker_register.outputs.frontend_pushed == 'true'
+        run: |
+          echo "Rolling back Frontend service..."
+          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest; then
+            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:latest ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:rollback
+            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-frontend:rollback
+            echo "Frontend rollback successful"
+          else
+            echo "Failed to rollback Frontend service"
+            exit 1
+          fi
+
+      - name: Rollback Catalogue
+        if: needs.push_to_docker_register.outputs.catalogue_pushed == 'true'
+        run: |
+          echo "Rolling back Catalogue service..."
+          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest; then
+            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:latest ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:rollback
+            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-catalogue:rollback
+            echo "Catalogue rollback successful"
+          else
+            echo "Failed to rollback Catalogue service"
+            exit 1
+          fi
+
+      - name: Rollback Recommendation
+        if: needs.push_to_docker_register.outputs.recommendation_pushed == 'true'
+        run: |
+          echo "Rolling back Recommendation service..."
+          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest; then
+            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:latest ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:rollback
+            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-recommendation:rollback
+            echo "Recommendation rollback successful"
+          else
+            echo "Failed to rollback Recommendation service"
+            exit 1
+          fi
+
+      - name: Rollback Voting
+        if: needs.push_to_docker_register.outputs.voting_pushed == 'true'
+        run: |
+          echo "Rolling back Voting service..."
+          if docker pull ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest; then
+            docker tag ${{ secrets.DOCKER_USERNAME }}/craftista-voting:latest ${{ secrets.DOCKER_USERNAME }}/craftista-voting:rollback
+            docker push ${{ secrets.DOCKER_USERNAME }}/craftista-voting:rollback
+            echo "Voting rollback successful"
+          else
+            echo "Failed to rollback Voting service"
+            exit 1
+          fi
+
+      - name: Rollback Status Summary
+        run: |
+          echo "=== Rollback Status Summary ==="
+          echo "Frontend: ${{ needs.push_to_docker_register.outputs.frontend_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+          echo "Catalogue: ${{ needs.push_to_docker_register.outputs.catalogue_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+          echo "Recommendation: ${{ needs.push_to_docker_register.outputs.recommendation_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
+          echo "Voting: ${{ needs.push_to_docker_register.outputs.voting_pushed == 'true' && 'Rolled back' || 'No rollback needed' }}"
 
 # =================================================================================================
     # a1ad85c2ed06111be5186d68e17cdb98dc3ea400
