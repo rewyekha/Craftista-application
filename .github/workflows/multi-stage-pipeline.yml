@@ -564,7 +564,9 @@ jobs:
         run: mvn -B verify
 
       - name: SonarCloud Analysis
-        run: mvn sonar:sonar -Dsonar.projectKey=craftista-voting
+        uses: SonarSource/sonarqube-scan-action@v4
+        with:
+          projectBaseDir: voting
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
