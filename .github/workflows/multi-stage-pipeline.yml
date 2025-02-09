@@ -408,8 +408,6 @@
 name: Craftista Multi-Stage Pipeline
 
 on:
-  push:
-    branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
@@ -619,12 +617,7 @@ jobs:
     needs: [detect-changes, validate-frontend, validate-catalogue, validate-recommendation, validate-voting]
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
-    outputs:
-      frontend_pushed: ${{ steps.record_pushes.outputs.frontend_pushed }}
-      catalogue_pushed: ${{ steps.record_pushes.outputs.catalogue_pushed }}
-      recommendation_pushed: ${{ steps.record_pushes.outputs.recommendation_pushed }}
-      voting_pushed: ${{ steps.record_pushes.outputs.voting_pushed }}
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'pipeline/gha')
     strategy:
       matrix:
         service: [frontend, catalogue, recommendation, voting]
@@ -634,6 +627,8 @@ jobs:
       - name: Debug Conditions
         run: |
           echo "Event name: ${{ github.event_name }}"
+          echo "PR Base: ${{ github.event.pull_request.base.ref }}"
+          echo "PR Head: ${{ github.event.pull_request.head.ref }}"
           echo "Reference: ${{ github.ref }}"
           echo "Service: ${{ matrix.service }}"
           echo "${{ matrix.service }} changes: ${{ needs.detect-changes.outputs[matrix.service] }}"
@@ -664,7 +659,7 @@ jobs:
         id: record_pushes
         run: |
           echo "${matrix.service}_pushed=${{ steps.docker_push.outcome == 'success' }}" >> $GITHUB_OUTPUT
-
+          
   rollback:
     needs: push_to_docker_register
     if: failure()
