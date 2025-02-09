@@ -35,3 +35,4 @@ EXPOSE 3000
 # Define the command to start the application using npm.
 CMD ["npm", "start"]
 
+# The Dockerfile for the frontend service is now complete. Save the file and close the editor.
