@@ -18,7 +18,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed_services: ${{ steps.changes.outputs.services }}
+      changed_services: ${{ steps.set-changes.outputs.services }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -38,11 +38,11 @@ jobs:
         id: set-changes
         run: |
           CHANGED=()
-          [[ "${{ steps.changes.outputs.frontend }}" == "true" ]] && CHANGED+=("frontend")
-          [[ "${{ steps.changes.outputs.catalogue }}" == "true" ]] && CHANGED+=("catalogue")
-          [[ "${{ steps.changes.outputs.voting }}" == "true" ]] && CHANGED+=("voting")
-          [[ "${{ steps.changes.outputs.recommendation }}" == "true" ]] && CHANGED+=("recommendation")
-          echo "services=$(IFS=,; echo "${CHANGED[*]}")" >> $GITHUB_ENV
+          [[ "${{ steps.changes.outputs.frontend }}" == "true" ]] && CHANGED+=('"frontend"')
+          [[ "${{ steps.changes.outputs.catalogue }}" == "true" ]] && CHANGED+=('"catalogue"')
+          [[ "${{ steps.changes.outputs.voting }}" == "true" ]] && CHANGED+=('"voting"')
+          [[ "${{ steps.changes.outputs.recommendation }}" == "true" ]] && CHANGED+=('"recommendation"')
+          echo "services=[${CHANGED[*]}]" >> $GITHUB_ENV
         shell: bash
 
   validate:
@@ -51,7 +51,7 @@ jobs:
     strategy:
       matrix:
         service: [frontend, catalogue, voting, recommendation]
-    if: contains(needs.detect-changes.outputs.changed_services, matrix.service)
+    if: contains(fromJson(needs.detect-changes.outputs.changed_services), matrix.service)
     steps:
       - uses: actions/checkout@v4
 
@@ -90,7 +90,7 @@ jobs:
     strategy:
       matrix:
         service: [frontend, catalogue, recommendation, voting]
-    if: contains(needs.detect-changes.outputs.changed_services, matrix.service)
+    if: contains(fromJson(needs.detect-changes.outputs.changed_services), matrix.service)
     steps:
       - uses: actions/checkout@v4
 
@@ -120,7 +120,7 @@ jobs:
     strategy:
       matrix:
         service: [frontend, catalogue, recommendation, voting]
-    if: contains(needs.detect-changes.outputs.changed_services, matrix.service)
+    if: contains(fromJson(needs.detect-changes.outputs.changed_services), matrix.service)
     steps:
       - uses: actions/checkout@v4
 
