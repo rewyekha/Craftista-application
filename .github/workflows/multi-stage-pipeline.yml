@@ -3,22 +3,25 @@ name: Craftista Multi-Stage Pipeline
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [main]
+    branches: [develop]
     paths:
       - 'frontend/**'
       - 'catalogue/**'
       - 'voting/**'
       - 'recommendation/**'
       - '*'
-  push:
-    branches:
-      - develop
+  # push:
+  #   branches:
+  #     - develop
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed_services: ${{ steps.changes.outputs.changed_services }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      catalogue: ${{ steps.changes.outputs.catalogue }}
+      recommendation: ${{ steps.changes.outputs.recommendation }}
+      voting: ${{ steps.changes.outputs.voting }}}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -162,11 +165,11 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-latest
-    needs: detect-changes
+    needs: [detect-changes, validate-frontend, validate-catalogue, validate-recommendation, validate-voting]
     strategy:
       matrix:
         service: [frontend, catalogue, recommendation, voting]
-    if: contains(needs.detect-changes.outputs.changed_services, matrix.service)
+    if: needs.detect-changes.outputs[format('{0}', matrix.service)] == 'true' && needs[format('validate-{0}', matrix.service)].result == 'success'
     env:
       REGISTRY: docker.io
       IMAGE_PREFIX: ${{ secrets.DOCKER_USERNAME }}
