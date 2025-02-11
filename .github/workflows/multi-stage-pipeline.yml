@@ -10,6 +10,9 @@ on:
       - 'voting/**'
       - 'recommendation/**'
       - '*'
+  push:
+    branches:
+      - develop
 
 jobs:
   detect-changes:
