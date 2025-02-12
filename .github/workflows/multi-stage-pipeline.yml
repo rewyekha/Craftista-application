@@ -190,5 +190,5 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           echo "Building and pushing ${{ matrix.service }}..."
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/craftista-${{ matrix.service }}:latest ./${{ matrix.service }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/craftista-${{ matrix.service }}:latest
+          docker build -t 8060633493/craftista-${{ matrix.service }}:latest ./${{ matrix.service }}
+          docker push 8060633493/craftista-${{ matrix.service }}:latest
