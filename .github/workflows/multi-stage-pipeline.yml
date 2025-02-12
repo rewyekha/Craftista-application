@@ -352,9 +352,9 @@ jobs:
           
       - name: Build and Push Docker Image
         run: |
-          echo "Building and pushing ${{ matrix.service }}..."
-          docker build -t 8060633493/craftista-${{ matrix.service }}:latest ./${{ matrix.service }}
-          docker push 8060633493/craftista-${{ matrix.service }}:latest
+          echo "Building and pushing frontend..."
+          docker build -t ${{ env.IMAGE_PREFIX }}-frontend:latest ./frontend
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
 
   build-and-push-catalogue:
     runs-on: ubuntu-latest
