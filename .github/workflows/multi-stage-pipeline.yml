@@ -5,10 +5,10 @@ on:
     types: [opened, synchronize, reopened]
     branches: [develop]
     paths:
-      - "frontend/**"
-      - "catalogue/**"
-      - "voting/**"
-      - "recommendation/**"
+      - 'frontend/**'
+      - 'catalogue/**'
+      - 'voting/**'
+      - 'recommendation/**'
 
 env:
   REGISTRY: docker.io
@@ -51,8 +51,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
-          cache: "npm"
+          node-version: '18'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -79,8 +79,8 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
-          cache: "pip"
+          python-version: '3.11'
+          cache: 'pip'
           cache-dependency-path: catalogue/requirements.txt
       - name: Install dependencies
         run: |
@@ -107,7 +107,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
-          go-version: "1.21"
+          go-version: '1.21'
           cache-dependency-path: recommendation/go.sum
       - name: Install dependencies
         run: go mod download
@@ -130,9 +130,9 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: "temurin"
-          cache: "maven"
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
       - name: Build and test
         run: mvn -B verify
       - name: SonarCloud Analysis
@@ -152,11 +152,10 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          
       - name: Build and Push Docker Image
         run: |
           echo "Building and pushing frontend..."
-          docker build -t ${{ env.IMAGE_PREFIX }}-frontend:latest ./frontend
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest ./frontend
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
 
   build-and-push-catalogue:
@@ -170,11 +169,10 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build and Push Docker Image
         run: |
-          echo "Building and pushing ${{ matrix.service }}..."
-          docker build -t ${{ env.IMAGE_PREFIX }}-catalogue:latest ./catalogue
+          echo "Building and pushing catalogue..."
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest ./catalogue
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest
 
   build-and-push-recommendation:
@@ -188,12 +186,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build and Push Docker Image
         run: |
-          echo "Building and pushing ${{ matrix.service }}..."
-          docker build -t 8060633493/craftista-${{ matrix.service }}:latest ./${{ matrix.service }}
-          docker push 8060633493/craftista-${{ matrix.service }}:latest
+          echo "Building and pushing recommendation..."
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest ./recommendation
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest
 
   build-and-push-voting:
     runs-on: ubuntu-latest
@@ -206,16 +203,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build and Push Docker Image
         run: |
-          echo "Building and pushing ${{ matrix.service }}..."
-          docker build -t 8060633493/craftista-${{ matrix.service }}:latest ./${{ matrix.service }}
-          docker push 8060633493/craftista-${{ matrix.service }}:latest
+          echo "Building and pushing voting..."
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest ./voting
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest
 
 
 
-      
-
-
-      
