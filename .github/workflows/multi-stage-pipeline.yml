@@ -147,6 +147,12 @@ jobs:
     if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Generate date-based version tag
+        id: version
+        run: |
+          # Generate timestamp in YYYYMMDD-HHMMSS format
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -155,8 +161,10 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           echo "Building and pushing frontend..."
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest ./frontend
+          VERSION_TAG=${{ steps.version.outputs.VERSION }}
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${VERSION_TAG} ./frontend
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${VERSION_TAG}
 
   build-and-push-catalogue:
     runs-on: ubuntu-latest
@@ -164,6 +172,12 @@ jobs:
     if: ${{ needs.detect-changes.outputs.catalogue == 'true' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Generate date-based version tag
+        id: version
+        run: |
+          # Generate timestamp in YYYYMMDD-HHMMSS format
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -172,8 +186,10 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           echo "Building and pushing catalogue..."
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest ./catalogue
+          VERSION_TAG=${{ steps.version.outputs.VERSION }}
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${VERSION_TAG} ./catalogue
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${VERSION_TAG}
 
   build-and-push-recommendation:
     runs-on: ubuntu-latest
@@ -181,6 +197,12 @@ jobs:
     if: ${{ needs.detect-changes.outputs.recommendation == 'true' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Generate date-based version tag
+        id: version
+        run: |
+          # Generate timestamp in YYYYMMDD-HHMMSS format
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -189,8 +211,10 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           echo "Building and pushing recommendation..."
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest ./recommendation
+          VERSION_TAG=${{ steps.version.outputs.VERSION }}
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${VERSION_TAG} ./recommendation
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${VERSION_TAG}
 
   build-and-push-voting:
     runs-on: ubuntu-latest
@@ -198,6 +222,12 @@ jobs:
     if: ${{ needs.detect-changes.outputs.voting == 'true' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Generate date-based version tag
+        id: version
+        run: |
+          # Generate timestamp in YYYYMMDD-HHMMSS format
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+          echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -206,8 +236,7 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           echo "Building and pushing voting..."
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest ./voting
+          VERSION_TAG=${{ steps.version.outputs.VERSION }}
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${VERSION_TAG} ./voting
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest
-
-
-
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${VERSION_TAG}
