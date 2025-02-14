@@ -141,7 +141,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  build-and-push-frontend:
+   build-and-push-frontend:
     runs-on: ubuntu-latest
     needs: validate-frontend
     if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
@@ -208,3 +208,6 @@ jobs:
           echo "Building and pushing voting..."
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest ./voting
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest
+
+
+
