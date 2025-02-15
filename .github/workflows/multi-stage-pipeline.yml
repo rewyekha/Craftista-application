@@ -141,6 +141,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+  
   build-and-push-frontend:
     runs-on: ubuntu-latest
     needs: validate-frontend
@@ -153,18 +154,51 @@ jobs:
           # Generate timestamp in YYYYMMDD-HHMMSS format
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
           echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          # Get previous version for potential rollback
+          PREV_VERSION=$(curl -s "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend/tags/" | jq -r '.results[1].name')
+          echo "PREV_VERSION=${PREV_VERSION}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Build and Push Docker Image
+        id: docker_push
         run: |
           echo "Building and pushing frontend..."
           VERSION_TAG=${{ steps.version.outputs.VERSION }}
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${VERSION_TAG} ./frontend
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${VERSION_TAG}
+          if ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest || \
+            ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${VERSION_TAG}; then
+            echo "PUSH_FAILED=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      - name: Rollback on failure
+        if: failure() && steps.docker_push.outputs.PUSH_FAILED == 'true'
+        run: |
+          echo "Docker push failed. Initiating rollback procedure..."
+          PREV_VERSION=${{ steps.version.outputs.PREV_VERSION }}
+          if [ ! -z "$PREV_VERSION" ]; then
+            echo "Rolling back to version: $PREV_VERSION"
+            # Pull previous version
+            docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${PREV_VERSION}
+            # Tag it as latest
+            docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:${PREV_VERSION} ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+            # Push latest tag
+            if docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest; then
+              echo "Rollback completed successfully"
+            else
+              echo "::error::Rollback failed. Manual intervention required."
+              exit 1
+            fi
+          else
+            echo "::error::No previous version found for rollback. Manual intervention required."
+            exit 1
+          fi
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "::error::Frontend service deployment failed. Status: $([ "${{ steps.docker_push.outputs.PUSH_FAILED }}" == "true" ] && echo "Rollback attempted" || echo "Build failed")"
 
   build-and-push-catalogue:
     runs-on: ubuntu-latest
@@ -175,21 +209,49 @@ jobs:
       - name: Generate date-based version tag
         id: version
         run: |
-          # Generate timestamp in YYYYMMDD-HHMMSS format
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
           echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          PREV_VERSION=$(curl -s "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue/tags/" | jq -r '.results[1].name')
+          echo "PREV_VERSION=${PREV_VERSION}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Build and Push Docker Image
+        id: docker_push
         run: |
           echo "Building and pushing catalogue..."
           VERSION_TAG=${{ steps.version.outputs.VERSION }}
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${VERSION_TAG} ./catalogue
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${VERSION_TAG}
+          if ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest || \
+            ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${VERSION_TAG}; then
+            echo "PUSH_FAILED=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      - name: Rollback on failure
+        if: failure() && steps.docker_push.outputs.PUSH_FAILED == 'true'
+        run: |
+          echo "Docker push failed. Initiating rollback procedure..."
+          PREV_VERSION=${{ steps.version.outputs.PREV_VERSION }}
+          if [ ! -z "$PREV_VERSION" ]; then
+            echo "Rolling back to version: $PREV_VERSION"
+            docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${PREV_VERSION}
+            docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:${PREV_VERSION} ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest
+            if docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest; then
+              echo "Rollback completed successfully"
+            else
+              echo "::error::Rollback failed. Manual intervention required."
+              exit 1
+            fi
+          else
+            echo "::error::No previous version found for rollback. Manual intervention required."
+            exit 1
+          fi
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "::error::Catalogue service deployment failed. Status: $([ "${{ steps.docker_push.outputs.PUSH_FAILED }}" == "true" ] && echo "Rollback attempted" || echo "Build failed")"
 
   build-and-push-recommendation:
     runs-on: ubuntu-latest
@@ -200,21 +262,49 @@ jobs:
       - name: Generate date-based version tag
         id: version
         run: |
-          # Generate timestamp in YYYYMMDD-HHMMSS format
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
           echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          PREV_VERSION=$(curl -s "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation/tags/" | jq -r '.results[1].name')
+          echo "PREV_VERSION=${PREV_VERSION}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Build and Push Docker Image
+        id: docker_push
         run: |
           echo "Building and pushing recommendation..."
           VERSION_TAG=${{ steps.version.outputs.VERSION }}
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${VERSION_TAG} ./recommendation
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${VERSION_TAG}
+          if ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest || \
+            ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${VERSION_TAG}; then
+            echo "PUSH_FAILED=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      - name: Rollback on failure
+        if: failure() && steps.docker_push.outputs.PUSH_FAILED == 'true'
+        run: |
+          echo "Docker push failed. Initiating rollback procedure..."
+          PREV_VERSION=${{ steps.version.outputs.PREV_VERSION }}
+          if [ ! -z "$PREV_VERSION" ]; then
+            echo "Rolling back to version: $PREV_VERSION"
+            docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${PREV_VERSION}
+            docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:${PREV_VERSION} ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest
+            if docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest; then
+              echo "Rollback completed successfully"
+            else
+              echo "::error::Rollback failed. Manual intervention required."
+              exit 1
+            fi
+          else
+            echo "::error::No previous version found for rollback. Manual intervention required."
+            exit 1
+          fi
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "::error::Recommendation service deployment failed. Status: $([ "${{ steps.docker_push.outputs.PUSH_FAILED }}" == "true" ] && echo "Rollback attempted" || echo "Build failed")"
 
   build-and-push-voting:
     runs-on: ubuntu-latest
@@ -225,18 +315,46 @@ jobs:
       - name: Generate date-based version tag
         id: version
         run: |
-          # Generate timestamp in YYYYMMDD-HHMMSS format
           TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
           echo "VERSION=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          PREV_VERSION=$(curl -s "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting/tags/" | jq -r '.results[1].name')
+          echo "PREV_VERSION=${PREV_VERSION}" >> $GITHUB_OUTPUT
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Build and Push Docker Image
+        id: docker_push
         run: |
           echo "Building and pushing voting..."
           VERSION_TAG=${{ steps.version.outputs.VERSION }}
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest -t ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${VERSION_TAG} ./voting
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${VERSION_TAG}
+          if ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest || \
+            ! docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${VERSION_TAG}; then
+            echo "PUSH_FAILED=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      - name: Rollback on failure
+        if: failure() && steps.docker_push.outputs.PUSH_FAILED == 'true'
+        run: |
+          echo "Docker push failed. Initiating rollback procedure..."
+          PREV_VERSION=${{ steps.version.outputs.PREV_VERSION }}
+          if [ ! -z "$PREV_VERSION" ]; then
+            echo "Rolling back to version: $PREV_VERSION"
+            docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${PREV_VERSION}
+            docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:${PREV_VERSION} ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest
+            if docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest; then
+              echo "Rollback completed successfully"
+            else
+              echo "::error::Rollback failed. Manual intervention required."
+              exit 1
+            fi
+          else
+            echo "::error::No previous version found for rollback. Manual intervention required."
+            exit 1
+          fi
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "::error::Voting service deployment failed. Status: $([ "${{ steps.docker_push.outputs.PUSH_FAILED }}" == "true" ] && echo "Rollback attempted" || echo "Build failed")"    
