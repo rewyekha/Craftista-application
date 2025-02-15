@@ -34,6 +34,3 @@ EXPOSE 3000
 
 # Define the command to start the application using npm.
 CMD ["npm", "start"]
-
-# Add an invalid command
-RUN invalid_command_here
