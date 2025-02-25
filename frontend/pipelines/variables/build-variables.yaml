@@ -1,0 +1,10 @@
+variables:
+  serviceName: 'frontend'
+  repositoryName: 'craftista-frontend'
+  containerRegistry: 'sharedcraftistaacrdckw'
+  dockerDirectory: 'frontend'
+  dockerFile: '/Dockerfile'
+  tags: 'latest'
+  buildContext: '**'
+  addPipelineData: true
+  addBaseImageData: true
