@@ -1,0 +1,92 @@
+services:
+  frontend:
+    build: ./frontend
+    image: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - catalogue
+      - voting
+      - recco
+    networks:
+      - craftista-net
+
+  catalogue:
+    build: ./catalogue
+    image: catalogue
+    ports:
+      - "5000:5000"
+    environment:
+      - DATA_SOURCE=mongo
+      - DB_HOST=catalogue-db
+      - DB_NAME=catalogue
+      - DB_USER=root
+      - DB_PASSWORD=example
+    depends_on:
+      - catalogue-db
+    networks:
+      - craftista-net
+
+  voting:
+    build: ./voting
+    image: voting
+    ports:
+      - "8081:8080"
+    environment:
+      - DB_HOST=voting-db
+      - DB_NAME=voting
+      - DB_USER=devops
+      - DB_PASSWORD=devops
+      - CATALOGUE_SERVICE_URL=http://catalogue:5000/api/products
+    depends_on:
+      - voting-db
+      - catalogue
+    networks:
+      - craftista-net
+
+  recco:
+    build: ./recommendation
+    image: recommendation
+    ports:
+      - "8082:8080"
+    depends_on:
+      - catalogue
+    networks:
+      - craftista-net
+
+  catalogue-db:
+    image: mongo:latest
+    container_name: catalogue-db
+    restart: always
+    environment:
+      MONGO_INITDB_DATABASE: catalogue
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - craftista-net
+
+  voting-db:
+    image: postgres:latest
+    container_name: voting-db
+    restart: always
+    environment:
+      POSTGRES_DB: voting
+      POSTGRES_USER: devops
+      POSTGRES_PASSWORD: devops
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - craftista-net
+
+volumes:
+  mongo-data:
+  postgres-data:
+
+networks:
+  craftista-net:
