@@ -1,0 +1,10 @@
+variables:
+  serviceName: 'recommendation'
+  repositoryName: 'craftista-recommendation'
+  containerRegistry: 'sharedcraftistaacrdckw'
+  dockerDirectory: 'recommendation'
+  dockerFile: '/Dockerfile'
+  tags: 'latest'
+  buildContext: '**'
+  addPipelineData: true
+  addBaseImageData: true

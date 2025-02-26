@@ -1,0 +1,20 @@
+name: craftista_$(serviceName)_$(Date:yyyyMMdd)_$(Rev:.r)
+
+trigger:
+- main
+
+resources:
+  repositories:
+  - repository: craftista
+    type: github
+    name: tonynator/craftista
+    endpoint: 'GitHub-Craftista-Pipelines'
+  - repository: templatesRepo
+    type: github
+    name: tonynator/azure-pipelines-templates
+    endpoint: 'GitHub-Craftista-Pipelines'
+
+variables:
+- template: variables/build-variables.yaml
+stages:
+- template: stages/docker_build_and_push_stage.yaml@templatesRepo
