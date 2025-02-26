@@ -1,0 +1,10 @@
+variables:
+  serviceName: 'voting'
+  repositoryName: 'craftista-voting'
+  containerRegistry: 'sharedcraftistaacrdckw'
+  dockerDirectory: 'voting'
+  dockerFile: '/Dockerfile'
+  tags: 'latest'
+  buildContext: '**'
+  addPipelineData: true
+  addBaseImageData: true
