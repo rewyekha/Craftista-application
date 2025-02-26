@@ -1,0 +1,10 @@
+variables:
+  serviceName: 'catalogue'
+  repositoryName: 'craftista-catalogue'
+  containerRegistry: 'sharedcraftistaacrdckw'
+  dockerDirectory: 'catalogue'
+  dockerFile: '/Dockerfile'
+  tags: 'latest'
+  buildContext: '**'
+  addPipelineData: true
+  addBaseImageData: true
