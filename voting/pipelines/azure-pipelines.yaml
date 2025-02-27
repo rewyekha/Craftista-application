@@ -1,7 +1,14 @@
 name: craftista_$(serviceName)_$(Date:yyyyMMdd)_$(Rev:.r)
 
 trigger:
-- main
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - voting/**
+
+pr: none
 
 resources:
   repositories:
