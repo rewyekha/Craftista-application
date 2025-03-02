@@ -29,20 +29,20 @@ services:
     environment:
       - FLASK_ENV=production
       - MONGO_URI=mongodb://catalogue-db:27017/craftista
-    depends_on:
-      - catalogue-db
+    # depends_on:
+    #   - catalogue-db
     networks:
       - craftista-network
 
-  catalogue-db:
-    image: mongo:${MONGO_VERSION:-latest}
-    ports:
-      - "27017"
-    volumes:
-      - catalogue-db-data:/data/db
-    networks:
-      - craftista-network
-    restart: unless-stopped
+  # catalogue-db:
+  #   image: mongo:${MONGO_VERSION:-latest}
+  #   ports:
+  #     - "27017"
+  #   volumes:
+  #     - catalogue-db-data:/data/db
+  #   networks:
+  #     - craftista-network
+  #   restart: unless-stopped
 
   voting:
     build: ./voting
