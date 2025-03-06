@@ -11,7 +11,7 @@ on:
       - 'recommendation/**'
 
   push:
-    branches: [develop]
+    branches: [main]
     paths:
       - 'frontend/**'
       - 'catalogue/**'
@@ -374,7 +374,7 @@ jobs:
   deploy-to-staging:
     runs-on: ubuntu-latest
     needs: [build-and-push-frontend, build-and-push-catalogue, build-and-push-recommendation, build-and-push-voting]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'pull_request'
     steps:
       - name: Checkout Kubernetes config repo
         uses: actions/checkout@v4
