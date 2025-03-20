@@ -396,16 +396,16 @@ jobs:
           VOTING_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest"
 
           # Update the deployments with the new image tags
-          kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE
-          kubectl set image deployment/catalogue catalogue=$CATALOGUE_IMAGE
-          kubectl set image deployment/recco recco=$RECCO_IMAGE
-          kubectl set image deployment/voting voting=$VOTING_IMAGE
+          kubectl set image -f k8s/frontend-deployment.yaml frontend=$FRONTEND_IMAGE
+          kubectl set image -f k8s/catalogue-deployment.yaml catalogue=$CATALOGUE_IMAGE
+          kubectl set image -f k8s/recco-deployment.yaml recco=$RECCO_IMAGE
+          kubectl set image -f k8s/voting-deployment.yaml voting=$VOTING_IMAGE
 
           # Optionally, you can also rollout the deployments
-          kubectl rollout status deployment/frontend
-          kubectl rollout status deployment/catalogue
-          kubectl rollout status deployment/recco
-          kubectl rollout status deployment/voting
+          kubectl rollout status -f k8s/frontend-deployment.yaml
+          kubectl rollout status -f k8s/catalogue-deployment.yaml
+          kubectl rollout status -f k8s/recco-deployment.yaml
+          kubectl rollout status -f k8s/voting-deployment.yaml
 
 
 # # _________________________________________________________________________________
