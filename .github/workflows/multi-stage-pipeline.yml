@@ -380,14 +380,22 @@ jobs:
       - name: Set up Civo CLI
         run: |
           curl -s https://get.civo.com | bash
-          export PATH=$PATH:$HOME/.civo/bin
+          echo "$HOME/.civo/bin" >> $GITHUB_PATH
+
+      - name: Log in to Civo
+        run: |
+          civo apikey add default ${{ secrets.CIVO_API_KEY }}
+
+      - name: Create Civo Kubernetes Cluster
+        run: |
+          civo kubernetes create craftista-demo --nodes 3 --wait
 
       - name: Configure kubectl
         run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+          civo kubernetes config craftista-demo --save
+          kubectl config use-context craftista-demo
 
-      - name: Deploy to Civo
+      - name: Deploy to Kubernetes
         run: |
           # Set the image tags for each service
           FRONTEND_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest"
@@ -395,17 +403,20 @@ jobs:
           RECCO_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest"
           VOTING_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest"
 
-          # Update the deployments with the new image tags
-          kubectl set image -f k8s/frontend-deployment.yaml frontend=$FRONTEND_IMAGE
-          kubectl set image -f k8s/catalogue-deployment.yaml catalogue=$CATALOGUE_IMAGE
-          kubectl set image -f k8s/recco-deployment.yaml recco=$RECCO_IMAGE
-          kubectl set image -f k8s/voting-deployment.yaml voting=$VOTING_IMAGE
+          # Apply the Kubernetes manifests
+          kubectl apply -f k8s/
 
-          # Optionally, you can also rollout the deployments
-          kubectl rollout status -f k8s/frontend-deployment.yaml
-          kubectl rollout status -f k8s/catalogue-deployment.yaml
-          kubectl rollout status -f k8s/recco-deployment.yaml
-          kubectl rollout status -f k8s/voting-deployment.yaml
+          # Update the deployments with the new image tags
+          kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE
+          kubectl set image deployment/catalogue catalogue=$CATALOGUE_IMAGE
+          kubectl set image deployment/recco recco=$RECCO_IMAGE
+          kubectl set image deployment/voting voting=$VOTING_IMAGE
+
+          # Wait for the deployments to roll out
+          kubectl rollout status deployment/frontend
+          kubectl rollout status deployment/catalogue
+          kubectl rollout status deployment/recco
+          kubectl rollout status deployment/voting
 
 
 # # _________________________________________________________________________________
