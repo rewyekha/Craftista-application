@@ -370,157 +370,195 @@ jobs:
           echo "::error::Voting service deployment failed. Status: $([ "${{ steps.docker_push.outputs.PUSH_FAILED }}" == "true" ] && echo "Rollback attempted" || echo "Build failed")"    
 
 
-# _________________________________________________________________________________
-
-  deploy-to-staging:
+  deploy-to-civo:
+    runs-on: ubuntu-latest
     needs: [build-and-push-frontend, build-and-push-catalogue, build-and-push-recommendation, build-and-push-voting]
-    if: |
-      github.event.pull_request.merged == true && 
-      github.event.pull_request.base.ref == 'develop'
-    runs-on: ubuntu-latest
-    environment: 
-      name: staging
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Debug GitHub context
+      - name: Set up Civo CLI
         run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Merged: ${{ github.event.pull_request.merged }}"
-          echo "Base ref: ${{ github.event.pull_request.base.ref }}"
-          echo "Full GitHub context:"
-          echo '${{ toJson(github) }}'
+          curl -s https://get.civo.com | bash
+          export PATH=$PATH:$HOME/.civo/bin
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Deploy to Civo
+        run: |
+          # Set the image tags for each service
+          FRONTEND_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest"
+          CATALOGUE_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest"
+          RECCO_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest"
+          VOTING_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest"
+
+          # Update the deployments with the new image tags
+          kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE
+          kubectl set image deployment/catalogue catalogue=$CATALOGUE_IMAGE
+          kubectl set image deployment/recco recco=$RECCO_IMAGE
+          kubectl set image deployment/voting voting=$VOTING_IMAGE
+
+          # Optionally, you can also rollout the deployments
+          kubectl rollout status deployment/frontend
+          kubectl rollout status deployment/catalogue
+          kubectl rollout status deployment/recco
+          kubectl rollout status deployment/voting
+
+
+# # _________________________________________________________________________________
+
+#   deploy-to-staging:
+#     needs: [build-and-push-frontend, build-and-push-catalogue, build-and-push-recommendation, build-and-push-voting]
+#     if: |
+#       github.event.pull_request.merged == true && 
+#       github.event.pull_request.base.ref == 'develop'
+#     runs-on: ubuntu-latest
+#     environment: 
+#       name: staging
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Debug GitHub context
+#         run: |
+#           echo "Event name: ${{ github.event_name }}"
+#           echo "Merged: ${{ github.event.pull_request.merged }}"
+#           echo "Base ref: ${{ github.event.pull_request.base.ref }}"
+#           echo "Full GitHub context:"
+#           echo '${{ toJson(github) }}'
       
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+#       - name: Update kubeconfig
+#         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
 
-      - name: Deploy to staging
-        id: deploy
-        run: |
-          # Apply namespace
-          kubectl apply -f k8s/staging/namespace.yaml
+#       - name: Deploy to staging
+#         id: deploy
+#         run: |
+#           # Apply namespace
+#           kubectl apply -f k8s/staging/namespace.yaml
           
-          # Deploy services
-          for service in frontend catalogue recommendation voting; do
-            if [[ -f "k8s/staging/${service}.yaml" ]]; then
-              VERSION_TAG=$(curl -s "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}/tags/" | jq -r '.results[0].name')
-              sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:${VERSION_TAG}|g" k8s/staging/${service}.yaml
-              kubectl apply -f k8s/staging/${service}.yaml
-            fi
-          done
+#           # Deploy services
+#           for service in frontend catalogue recommendation voting; do
+#             if [[ -f "k8s/staging/${service}.yaml" ]]; then
+#               VERSION_TAG=$(curl -s "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}/tags/" | jq -r '.results[0].name')
+#               sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:${VERSION_TAG}|g" k8s/staging/${service}.yaml
+#               kubectl apply -f k8s/staging/${service}.yaml
+#             fi
+#           done
 
-      - name: Verify staging deployment
-        run: |
-          for service in frontend catalogue recommendation voting; do
-            echo "Waiting for ${service} deployment to complete..."
-            kubectl rollout status deployment/${service} -n craftista-staging --timeout=300s
-          done
+#       - name: Verify staging deployment
+#         run: |
+#           for service in frontend catalogue recommendation voting; do
+#             echo "Waiting for ${service} deployment to complete..."
+#             kubectl rollout status deployment/${service} -n craftista-staging --timeout=300s
+#           done
 
-      - name: Rollback on failure
-        if: failure() && steps.deploy.outcome == 'failure'
-        run: |
-          echo "Deployment failed, rolling back..."
-          for service in frontend catalogue recommendation voting; do
-            if kubectl get deployment ${service} -n craftista-staging &> /dev/null; then
-              kubectl rollout undo deployment/${service} -n craftista-staging
-            fi
-          done
+#       - name: Rollback on failure
+#         if: failure() && steps.deploy.outcome == 'failure'
+#         run: |
+#           echo "Deployment failed, rolling back..."
+#           for service in frontend catalogue recommendation voting; do
+#             if kubectl get deployment ${service} -n craftista-staging &> /dev/null; then
+#               kubectl rollout undo deployment/${service} -n craftista-staging
+#             fi
+#           done
 
-  promote-to-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: 
-      name: production
-    steps:
-      - uses: actions/checkout@v4
+#   promote-to-production:
+#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+#     runs-on: ubuntu-latest
+#     environment: 
+#       name: production
+#     steps:
+#       - uses: actions/checkout@v4
       
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+#       - name: Update kubeconfig
+#         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
 
-      - name: Validate staging environment
-        run: |
-          for service in frontend catalogue recommendation voting; do
-            if ! kubectl get deployment ${service} -n craftista-staging &> /dev/null; then
-              echo "Error: ${service} not found in staging"
-              exit 1
-            fi
+#       - name: Validate staging environment
+#         run: |
+#           for service in frontend catalogue recommendation voting; do
+#             if ! kubectl get deployment ${service} -n craftista-staging &> /dev/null; then
+#               echo "Error: ${service} not found in staging"
+#               exit 1
+#             fi
             
-            READY=$(kubectl get deployment ${service} -n craftista-staging -o jsonpath='{.status.readyReplicas}')
-            DESIRED=$(kubectl get deployment ${service} -n craftista-staging -o jsonpath='{.spec.replicas}')
+#             READY=$(kubectl get deployment ${service} -n craftista-staging -o jsonpath='{.status.readyReplicas}')
+#             DESIRED=$(kubectl get deployment ${service} -n craftista-staging -o jsonpath='{.spec.replicas}')
             
-            if [ "$READY" != "$DESIRED" ]; then
-              echo "Error: ${service} not ready in staging"
-              exit 1
-            fi
-          done
+#             if [ "$READY" != "$DESIRED" ]; then
+#               echo "Error: ${service} not ready in staging"
+#               exit 1
+#             fi
+#           done
 
-      - name: Store current production state
-        run: |
-          mkdir -p /tmp/rollback
-          for service in frontend catalogue recommendation voting; do
-            kubectl get deployment ${service} -n craftista-production -o yaml > /tmp/rollback/${service}.yaml || true
-          done
+#       - name: Store current production state
+#         run: |
+#           mkdir -p /tmp/rollback
+#           for service in frontend catalogue recommendation voting; do
+#             kubectl get deployment ${service} -n craftista-production -o yaml > /tmp/rollback/${service}.yaml || true
+#           done
 
-      - name: Promote to production
-        id: promote
-        run: |
-          # Apply production namespace
-          kubectl apply -f k8s/production/namespace.yaml
+#       - name: Promote to production
+#         id: promote
+#         run: |
+#           # Apply production namespace
+#           kubectl apply -f k8s/production/namespace.yaml
           
-          # For each service, get the image tag from staging and apply to production
-          for service in frontend catalogue recommendation voting; do
-            if [[ -f "k8s/production/${service}.yaml" ]]; then
-              # Get current image tag from staging deployment
-              STAGING_TAG=$(kubectl get deployment ${service} -n craftista-staging -o jsonpath='{.spec.template.spec.containers[0].image}' | cut -d ':' -f2)
+#           # For each service, get the image tag from staging and apply to production
+#           for service in frontend catalogue recommendation voting; do
+#             if [[ -f "k8s/production/${service}.yaml" ]]; then
+#               # Get current image tag from staging deployment
+#               STAGING_TAG=$(kubectl get deployment ${service} -n craftista-staging -o jsonpath='{.spec.template.spec.containers[0].image}' | cut -d ':' -f2)
               
-              # Update production manifest with staging tag
-              sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:${STAGING_TAG}|g" k8s/production/${service}.yaml
+#               # Update production manifest with staging tag
+#               sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:.*|image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-${service}:${STAGING_TAG}|g" k8s/production/${service}.yaml
               
-              # Apply to production
-              kubectl apply -f k8s/production/${service}.yaml
-            fi
-          done
+#               # Apply to production
+#               kubectl apply -f k8s/production/${service}.yaml
+#             fi
+#           done
 
-      - name: Verify production deployment
-        run: |
-          for service in frontend catalogue recommendation voting; do
-            echo "Waiting for ${service} deployment to complete..."
-            kubectl rollout status deployment/${service} -n craftista-production --timeout=300s
-          done
+#       - name: Verify production deployment
+#         run: |
+#           for service in frontend catalogue recommendation voting; do
+#             echo "Waiting for ${service} deployment to complete..."
+#             kubectl rollout status deployment/${service} -n craftista-production --timeout=300s
+#           done
 
-      - name: Rollback on failure
-        if: failure() && steps.promote.outcome == 'failure'
-        run: |
-          echo "Promotion failed, rolling back..."
-          for service in frontend catalogue recommendation voting; do
-            if [ -f "/tmp/rollback/${service}.yaml" ]; then
-              kubectl apply -f /tmp/rollback/${service}.yaml
-            fi
-          done
+#       - name: Rollback on failure
+#         if: failure() && steps.promote.outcome == 'failure'
+#         run: |
+#           echo "Promotion failed, rolling back..."
+#           for service in frontend catalogue recommendation voting; do
+#             if [ -f "/tmp/rollback/${service}.yaml" ]; then
+#               kubectl apply -f /tmp/rollback/${service}.yaml
+#             fi
+#           done
 
-      - name: Notify deployment status
-        if: always()
-        run: |
-          STATUS="${{ job.status }}"
-          ENVIRONMENT="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"
+#       - name: Notify deployment status
+#         if: always()
+#         run: |
+#           STATUS="${{ job.status }}"
+#           ENVIRONMENT="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"
           
-          if [ "$STATUS" = "success" ]; then
-            echo "Deployment to ${ENVIRONMENT} completed successfully"
-          else
-            echo "Deployment to ${ENVIRONMENT} failed"
-            exit 1
-          fi
+#           if [ "$STATUS" = "success" ]; then
+#             echo "Deployment to ${ENVIRONMENT} completed successfully"
+#           else
+#             echo "Deployment to ${ENVIRONMENT} failed"
+#             exit 1
+#           fi
