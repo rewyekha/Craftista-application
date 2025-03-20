@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: craftista-staging
 spec:
   replicas: 1
   selector:
@@ -20,34 +19,30 @@ spec:
         - containerPort: 3000
         resources:
           limits:
-            cpu: "0.5"
+            cpu: "500m"
             memory: "512Mi"
           requests:
-            cpu: "0.1"
-            memory: "128Mi"
+            cpu: "200m"
+            memory: "256Mi"
         env:
+        - name: NODE_ENV
+          value: "production"
         - name: PRODUCTS_API_BASE_URI
           value: "http://catalogue:5000"
-        - name: VOTING_BASE_URI
-          value: "http://voting:8080"
         - name: RECOMMENDATION_BASE_URI
           value: "http://recco:8080"
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 10
-          periodSeconds: 5
+        - name: VOTING_BASE_URI
+          value: "http://voting:8080"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend
-  namespace: staging
 spec:
+  type: NodePort
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30001
   selector:
     app: frontend
-  ports:
-  - port: 80
-    targetPort: 3000
-  type: ClusterIP

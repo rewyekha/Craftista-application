@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: voting
-  namespace: craftista-staging
 spec:
   replicas: 1
   selector:
@@ -20,21 +19,20 @@ spec:
         - containerPort: 8080
         resources:
           limits:
-            cpu: "0.5"
+            cpu: "500m"
             memory: "512Mi"
           requests:
-            cpu: "0.1"
-            memory: "128Mi"
+            cpu: "200m"
+            memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: voting
-  namespace: craftista-staging
 spec:
-  selector:
-    app: voting
+  type: ClusterIP
   ports:
   - port: 8080
     targetPort: 8080
-  type: ClusterIP
+  selector:
+    app: voting

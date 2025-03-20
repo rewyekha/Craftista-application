@@ -1,40 +1,38 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: recommendation
-  namespace: craftista-production
+  name: recco
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: recommendation
+      app: recco
   template:
     metadata:
       labels:
-        app: recommendation
+        app: recco
     spec:
       containers:
-      - name: recommendation
-        image: 8060633493/craftista-recco:latest
+      - name: recco
+        image: 8060633493/craftista-recommendation:latest
         ports:
         - containerPort: 8080
         resources:
           limits:
-            cpu: "0.5"
+            cpu: "128m"
             memory: "512Mi"
           requests:
-            cpu: "0.2"
+            cpu: "100m"
             memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: recco
-  namespace: craftista-production
 spec:
-  selector:
-    app: recommendation
+  type: ClusterIP
   ports:
   - port: 8080
     targetPort: 8080
-  type: ClusterIP
+  selector:
+    app: recco
