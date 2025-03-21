@@ -10,13 +10,13 @@ on:
       - 'voting/**'
       - 'recommendation/**'
 
-  # push:
-  #   branches: [develop]
-  #   paths:
-  #     - 'frontend/**'
-  #     - 'catalogue/**'
-  #     - 'voting/**'
-  #     - 'recommendation/**'
+  push:
+    branches: [develop]
+    paths:
+      - 'frontend/**'
+      - 'catalogue/**'
+      - 'voting/**'
+      - 'recommendation/**'
 
 env:
   REGISTRY: docker.io
