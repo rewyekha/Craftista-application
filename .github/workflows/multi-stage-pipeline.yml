@@ -21,8 +21,9 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_PREFIX: craftista
-  AWS_REGION: us-east-1
-  EKS_CLUSTER: craftista-demo-cluster
+  CIVO_TOKEN: ${{ secrets.CIVO_API_KEY }}
+  CLUSTER_NAME: craftista-demo
+  CIVO_REGION: nyc1
 
 jobs:
   detect-changes:
@@ -377,23 +378,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Civo CLI
+      - name: Install CIVO CLI
         run: |
-          curl -s https://get.civo.com | bash
-          echo "$HOME/.civo/bin" >> $GITHUB_PATH
+          curl -sL https://civo.com/get | sh
+          civo apikey add github-action ${{ secrets.CIVO_API_KEY }}
 
-      - name: Log in to Civo
+      - name: Create Kubernetes cluster
         run: |
-          civo apikey add default ${{ secrets.CIVO_API_KEY }}
+          civo kubernetes create $CLUSTER_NAME \
+            --nodes=3 \
+            --size=g4s.kube.medium \
+            --wait
+          
+      - name: Wait for cluster to be ready
+        run: |
+          echo "Waiting for cluster to be ready..."
+          sleep 60  # Give additional time for cluster to initialize
+          
+      - name: Get Kubeconfig and verify cluster access
+        run: |
+          civo kubernetes config $CLUSTER_NAME --save 
+          kubectl config use-context $CLUSTER_NAME
+          kubectl cluster-info
+          kubectl get nodes
 
-      - name: Create Civo Kubernetes Cluster
+      - name: Verify kubectl configuration
         run: |
-          civo kubernetes create craftista-demo --nodes 3 --wait
-
-      - name: Configure kubectl
-        run: |
-          civo kubernetes config craftista-demo --save
-          kubectl config use-context craftista-demo
+          kubectl config view
+          kubectl config current-context
 
       - name: Deploy to Kubernetes
         run: |
@@ -417,6 +429,13 @@ jobs:
           kubectl rollout status deployment/catalogue
           kubectl rollout status deployment/recco
           kubectl rollout status deployment/voting
+
+      - name: Wait for deployments
+        run: |
+          echo "Waiting for deployments to be ready..."
+          kubectl get pods -A
+          kubectl wait --for=condition=available --timeout=300s deployment/mongodb-deployment
+          kubectl wait --for=condition=available --timeout=300s deployment/mongo-express
 
 
 # # _________________________________________________________________________________
