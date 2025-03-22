@@ -373,13 +373,17 @@ jobs:
 
   deploy-to-civo:
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # Add overall job timeout
     needs: [detect-changes, build-and-push-frontend, build-and-push-catalogue, build-and-push-recommendation, build-and-push-voting]
-    if: |
-      needs.detect-changes.outputs.frontend == 'true' ||
-      needs.detect-changes.outputs.catalogue == 'true' ||
-      needs.detect-changes.outputs.recommendation == 'true' ||
-      needs.detect-changes.outputs.voting == 'true'
+    if: always()
+    
     steps:
+      - name: Debug Information
+        run: |
+          echo "Frontend changes: ${{ needs.detect-changes.outputs.frontend }}"
+          echo "Catalogue changes: ${{ needs.detect-changes.outputs.catalogue }}"
+          echo "Recommendation changes: ${{ needs.detect-changes.outputs.recommendation }}"
+          echo "Voting changes: ${{ needs.detect-changes.outputs.voting }}"
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -414,33 +418,50 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          # Set the image tags for each service
-          FRONTEND_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest"
-          CATALOGUE_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest"
-          RECCO_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest"
-          VOTING_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest"
+          # Only update services that have changes
+          if [[ "${{ needs.detect-changes.outputs.frontend }}" == "true" ]]; then
+            FRONTEND_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest"
+            kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE
+            kubectl rollout status deployment/frontend
+          fi
 
-          # Apply the Kubernetes manifests
+          if [[ "${{ needs.detect-changes.outputs.catalogue }}" == "true" ]]; then
+            CATALOGUE_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest"
+            kubectl set image deployment/catalogue catalogue=$CATALOGUE_IMAGE
+            kubectl rollout status deployment/catalogue
+          fi
+
+          if [[ "${{ needs.detect-changes.outputs.recommendation }}" == "true" ]]; then
+            RECCO_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest"
+            kubectl set image deployment/recco recco=$RECCO_IMAGE
+            kubectl rollout status deployment/recco
+          fi
+
+          if [[ "${{ needs.detect-changes.outputs.voting }}" == "true" ]]; then
+            VOTING_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest"
+            kubectl set image deployment/voting voting=$VOTING_IMAGE
+            kubectl rollout status deployment/voting
+          fi
+
+          # Apply common Kubernetes manifests
           kubectl apply -f k8s/
 
-          # Update the deployments with the new image tags
-          kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE
-          kubectl set image deployment/catalogue catalogue=$CATALOGUE_IMAGE
-          kubectl set image deployment/recco recco=$RECCO_IMAGE
-          kubectl set image deployment/voting voting=$VOTING_IMAGE
-
-          # Wait for the deployments to roll out
-          kubectl rollout status deployment/frontend
-          kubectl rollout status deployment/catalogue
-          kubectl rollout status deployment/recco
-          kubectl rollout status deployment/voting
-
-      - name: Wait for deployments
+      - name: Deployment Status
+        if: always()
         run: |
-          echo "Waiting for deployments to be ready..."
+          echo "Deployment Status:"
           kubectl get pods -A
-          kubectl wait --for=condition=available --timeout=300s deployment/mongodb-deployment
-          kubectl wait --for=condition=available --timeout=300s deployment/mongo-express
+          kubectl get deployments
+          
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "::notice::Deployment to CIVO completed successfully"
+          
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::Deployment to CIVO failed. Check logs for details."
 
 
 # # _________________________________________________________________________________
