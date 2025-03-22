@@ -429,7 +429,7 @@ jobs:
 
       - name: Setup kubectl
         run: |
-          civo kubernetes config ${{ env.CLUSTER_NAME }} --save --merge
+          civo kubernetes config ${{ env.CLUSTER_NAME }} --save 
           kubectl config use-context ${{ env.CLUSTER_NAME }}
           # Wait for nodes to be ready
           kubectl wait --for=condition=ready node --all --timeout=300s
