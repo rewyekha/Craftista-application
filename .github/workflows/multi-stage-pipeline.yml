@@ -24,6 +24,7 @@ env:
   CIVO_TOKEN: ${{ secrets.CIVO_API_KEY }}
   CLUSTER_NAME: craftista-demo
   CIVO_REGION: nyc1
+  KUBECTL_TIMEOUT: "300s"
 
 jobs:
   detect-changes:
@@ -373,7 +374,7 @@ jobs:
 
   deploy-to-civo:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Add overall job timeout
+    timeout-minutes: 30
     needs: [detect-changes, build-and-push-frontend, build-and-push-catalogue, build-and-push-recommendation, build-and-push-voting]
     if: always()
     
@@ -384,6 +385,7 @@ jobs:
           echo "Catalogue changes: ${{ needs.detect-changes.outputs.catalogue }}"
           echo "Recommendation changes: ${{ needs.detect-changes.outputs.recommendation }}"
           echo "Voting changes: ${{ needs.detect-changes.outputs.voting }}"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -392,76 +394,112 @@ jobs:
           curl -sL https://civo.com/get | sh
           civo apikey add github-action ${{ secrets.CIVO_API_KEY }}
 
+      - name: Check existing cluster
+        id: check_cluster
+        run: |
+          if civo kubernetes show ${{ env.CLUSTER_NAME }} 2>/dev/null; then
+            echo "EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete existing cluster if exists
+        if: steps.check_cluster.outputs.EXISTS == 'true'
+        run: |
+          echo "Deleting existing cluster..."
+          civo kubernetes remove ${{ env.CLUSTER_NAME }} --region ${{ env.CIVO_REGION }} --yes
+
       - name: Create Kubernetes cluster
         run: |
-          civo kubernetes create $CLUSTER_NAME \
+          echo "Creating new cluster..."
+          civo kubernetes create ${{ env.CLUSTER_NAME }} \
             --nodes=3 \
             --size=g4s.kube.medium \
+            --region ${{ env.CIVO_REGION }} \
             --wait
-          
-      - name: Wait for cluster to be ready
+
+      - name: Wait for cluster
         run: |
           echo "Waiting for cluster to be ready..."
           sleep 60  # Give additional time for cluster to initialize
-          
-      - name: Get Kubeconfig and verify cluster access
-        run: |
-          civo kubernetes config $CLUSTER_NAME --save 
-          kubectl config use-context $CLUSTER_NAME
-          kubectl cluster-info
-          kubectl get nodes
+          until civo kubernetes show ${{ env.CLUSTER_NAME }} | grep -q "READY"; do
+            sleep 10
+            echo "Still waiting for cluster..."
+          done
 
-      - name: Verify kubectl configuration
+      - name: Setup kubectl
         run: |
-          kubectl config view
-          kubectl config current-context
+          civo kubernetes config ${{ env.CLUSTER_NAME }} --save --merge
+          kubectl config use-context ${{ env.CLUSTER_NAME }}
+          # Wait for nodes to be ready
+          kubectl wait --for=condition=ready node --all --timeout=300s
 
-      - name: Deploy to Kubernetes
+      - name: Apply Kubernetes manifests
         run: |
-          # Only update services that have changes
+          # Apply all manifests in order
+          kubectl apply -f k8s/frontend-deployment.yaml
+          kubectl apply -f k8s/catalogue-deployment.yaml
+          kubectl apply -f k8s/recco-deployment.yaml
+          kubectl apply -f k8s/voting-deployment.yaml
+
+      - name: Update deployments with latest images
+        run: |
           if [[ "${{ needs.detect-changes.outputs.frontend }}" == "true" ]]; then
-            FRONTEND_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest"
-            kubectl set image deployment/frontend frontend=$FRONTEND_IMAGE
-            kubectl rollout status deployment/frontend
+            echo "Updating frontend deployment..."
+            kubectl set image deployment/frontend frontend=${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+            kubectl rollout status deployment/frontend --timeout=300s
           fi
 
           if [[ "${{ needs.detect-changes.outputs.catalogue }}" == "true" ]]; then
-            CATALOGUE_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest"
-            kubectl set image deployment/catalogue catalogue=$CATALOGUE_IMAGE
-            kubectl rollout status deployment/catalogue
+            echo "Updating catalogue deployment..."
+            kubectl set image deployment/catalogue catalogue=${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-catalogue:latest
+            kubectl rollout status deployment/catalogue --timeout=300s
           fi
 
           if [[ "${{ needs.detect-changes.outputs.recommendation }}" == "true" ]]; then
-            RECCO_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest"
-            kubectl set image deployment/recco recco=$RECCO_IMAGE
-            kubectl rollout status deployment/recco
+            echo "Updating recommendation deployment..."
+            kubectl set image deployment/recco recco=${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-recommendation:latest
+            kubectl rollout status deployment/recco --timeout=300s
           fi
 
           if [[ "${{ needs.detect-changes.outputs.voting }}" == "true" ]]; then
-            VOTING_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest"
-            kubectl set image deployment/voting voting=$VOTING_IMAGE
-            kubectl rollout status deployment/voting
+            echo "Updating voting deployment..."
+            kubectl set image deployment/voting voting=${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_PREFIX }}-voting:latest
+            kubectl rollout status deployment/voting --timeout=300s
           fi
 
-          # Apply common Kubernetes manifests
-          kubectl apply -f k8s/
-
-      - name: Deployment Status
-        if: always()
+      - name: Verify deployments
         run: |
-          echo "Deployment Status:"
+          echo "Checking deployment status..."
           kubectl get pods -A
           kubectl get deployments
+          kubectl get services
           
-      - name: Notify on Success
-        if: success()
-        run: |
-          echo "::notice::Deployment to CIVO completed successfully"
-          
-      - name: Notify on Failure
+          # Check for any pods in error state
+          if kubectl get pods -A | grep -E "Error|CrashLoopBackOff"; then
+            echo "::error::Some pods are in error state"
+            kubectl describe pods
+            exit 1
+          fi
+
+      - name: Cleanup on failure
         if: failure()
         run: |
-          echo "::error::Deployment to CIVO failed. Check logs for details."
+          echo "Deployment failed, collecting logs..."
+          kubectl get events
+          kubectl describe pods
+          echo "Consider running: civo kubernetes delete ${{ env.CLUSTER_NAME }} --region ${{ env.CIVO_REGION }} --yes"
+
+      - name: Notify status
+        if: always()
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "::notice::Deployment completed successfully"
+            echo "Cluster Info:"
+            civo kubernetes show ${{ env.CLUSTER_NAME }}
+          else
+            echo "::error::Deployment failed. Check the logs for details."
+          fi
 
 
 # # _________________________________________________________________________________
