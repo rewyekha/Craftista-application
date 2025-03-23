@@ -25,6 +25,8 @@ env:
   CLUSTER_NAME: craftista-demo
   CIVO_REGION: nyc1
   KUBECTL_TIMEOUT: "300s"
+  CLUSTER_CREATION_TIMEOUT: "600s"
+  MAX_RETRIES: "3"
 
 jobs:
   detect-changes:
@@ -409,30 +411,107 @@ jobs:
           echo "Deleting existing cluster..."
           civo kubernetes remove ${{ env.CLUSTER_NAME }} --region ${{ env.CIVO_REGION }} --yes
 
-      - name: Create Kubernetes cluster
+            - name: Create Kubernetes cluster
+        id: create_cluster
         run: |
           echo "Creating new cluster..."
-          civo kubernetes create ${{ env.CLUSTER_NAME }} \
-            --nodes=3 \
-            --size=g4s.kube.medium \
-            --region ${{ env.CIVO_REGION }} \
-            --wait
+          # Add retries for cluster creation
+          max_retries=3
+          retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            if civo kubernetes create ${{ env.CLUSTER_NAME }} \
+              --nodes=3 \
+              --size=g4s.kube.medium \
+              --region ${{ env.CIVO_REGION }} \
+              --save \
+              --wait; then
+              echo "CLUSTER_CREATED=true" >> $GITHUB_OUTPUT
+              break
+            else
+              let retry_count++
+              echo "Cluster creation failed, attempt $retry_count of $max_retries"
+              # Delete failed cluster if it exists
+              civo kubernetes remove ${{ env.CLUSTER_NAME }} --region ${{ env.CIVO_REGION }} --yes || true
+              sleep 30
+            fi
+          done
+          
+          if [ $retry_count -eq $max_retries ]; then
+            echo "Failed to create cluster after $max_retries attempts"
+            exit 1
+          fi
 
       - name: Wait for cluster
+        if: steps.create_cluster.outputs.CLUSTER_CREATED == 'true'
         run: |
           echo "Waiting for cluster to be ready..."
-          sleep 60  # Give additional time for cluster to initialize
-          until civo kubernetes show ${{ env.CLUSTER_NAME }} | grep -q "READY"; do
-            sleep 10
-            echo "Still waiting for cluster..."
+          max_attempts=30
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            if civo kubernetes show ${{ env.CLUSTER_NAME }} | grep -q "READY"; then
+              echo "Cluster is ready!"
+              break
+            fi
+            
+            let attempt++
+            echo "Attempt $attempt of $max_attempts: Cluster not ready yet..."
+            
+            # Check for specific error conditions
+            if civo kubernetes show ${{ env.CLUSTER_NAME }} | grep -q "Error"; then
+              echo "Error detected in cluster status"
+              civo kubernetes show ${{ env.CLUSTER_NAME }}
+              exit 1
+            fi
+            
+            sleep 20
           done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Cluster failed to become ready within timeout"
+            civo kubernetes show ${{ env.CLUSTER_NAME }}
+            exit 1
+          fi
 
-      - name: Setup kubectl
+      - name: Verify CIVO API access
         run: |
-          civo kubernetes config ${{ env.CLUSTER_NAME }} --save 
-          kubectl config use-context ${{ env.CLUSTER_NAME }}
-          # Wait for nodes to be ready
-          kubectl wait --for=condition=ready node --all --timeout=300s
+          echo "Verifying CIVO API access..."
+          if ! civo quota; then
+            echo "Error: Cannot access CIVO API"
+            exit 1
+          fi
+          
+          echo "Verifying cluster access..."
+          if ! civo kubernetes ls; then
+            echo "Error: Cannot list kubernetes clusters"
+            exit 1
+          fi
+
+      - name: Setup kubectl with retry
+        run: |
+          max_retries=3
+          retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            if civo kubernetes config ${{ env.CLUSTER_NAME }} --save; then
+              echo "Successfully configured kubectl"
+              break
+            else
+              let retry_count++
+              echo "Failed to configure kubectl, attempt $retry_count of $max_retries"
+              sleep 10
+            fi
+          done
+          
+          if [ $retry_count -eq $max_retries ]; then
+            echo "Failed to configure kubectl after $max_retries attempts"
+            exit 1
+          fi
+          
+          # Verify kubectl access
+          kubectl cluster-info
+          kubectl get nodes
 
       - name: Apply Kubernetes manifests
         run: |
