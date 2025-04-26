@@ -1,0 +1,39 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    container_name: frontend
+    depends_on:
+      - catalogue
+      - voting
+      - recco
+    networks:
+      - fadoua
+  catalogue:
+    build: ./catalogue
+    ports:
+      - "5000:5000"
+    container_name: catalogue
+    networks:
+      - fadoua
+  voting:
+    build: ./voting
+    ports:
+      - "5050:8080"
+    container_name: voting
+    depends_on:
+      - catalogue
+    networks:
+      - fadoua
+  recco:
+    build: ./recommendation
+    ports:
+      - "6060:8080"
+    container_name: recommendation
+    networks:
+      - fadoua
+
+networks:
+  fadoua:
+    driver: bridge
