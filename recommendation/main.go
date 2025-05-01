@@ -118,8 +118,8 @@ func main() {
         router.GET("/api/recommendation-status", getRecommendationStatus)
 
 
-	// Start the server on port 8080
-	router.Run(":8080")
+	// Start the server on port 8081
+	router.Run(":8081")
 
 }
 
