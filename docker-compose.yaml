@@ -1,0 +1,49 @@
+
+  services:
+    catalogue:
+      build:
+        context: ./catalogue
+      ports:
+        - "5000:5000"
+      networks:
+        - app
+
+    catalogue-db:
+      image: postgres:16.2-alpine3.19
+      environment:
+        POSTGRES_USER: devops
+        POSTGRES_PASSWORD: devops
+        POSTGRES_DB: catalogue
+      networks:
+        - app
+
+    frontend:
+      build:
+        context: ./frontend
+      ports:
+        - "80:3000"
+      networks:
+        - app
+
+    recommendation:
+      build:
+        context: ./recommendation
+      ports:
+        - "8080:8080"
+      networks:
+        - app
+
+    voting:
+      build:
+        context: ./voting
+      ports:
+          - "8081:8080"
+      depends_on:
+        - catalogue
+      networks:
+        - app
+
+  networks:
+    app:
+      driver: bridge
+
