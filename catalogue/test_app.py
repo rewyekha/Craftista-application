@@ -35,5 +35,16 @@ class FlaskTest(unittest.TestCase):
         self.assertTrue(b'name' in response.data)
         self.assertTrue(b'image_url' in response.data)
 
+    # Test successful product retrieval by ID
+    def test_get_product_success(self):
+        logging.info("TEST-05: Testing successful product retrieval by ID...")
+        tester = app.test_client(self)
+        response = tester.get('/api/products/1', content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(b'name' in response.data)
+        self.assertTrue(b'description' in response.data)
+        self.assertTrue(b'image_url' in response.data)
+        self.assertTrue(b'id' in response.data)
+
 if __name__ == '__main__':
     unittest.main()
